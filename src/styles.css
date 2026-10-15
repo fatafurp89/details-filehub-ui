@@ -1,0 +1,72 @@
+@import "tailwindcss" source(none);
+@import "tw-animate-css";
+@source "../src";
+@custom-variant dark (&:is(.dark *));
+@theme inline {
+ --font-sans: Arial, Tahoma, sans-serif;
+ --color-background: var(--background); --color-foreground: var(--foreground);
+ --color-card: var(--card); --color-card-foreground: var(--foreground);
+ --color-popover: var(--card); --color-popover-foreground: var(--foreground);
+ --color-primary: var(--primary); --color-primary-foreground: var(--primary-foreground);
+ --color-secondary: var(--secondary); --color-secondary-foreground: var(--secondary-foreground);
+ --color-muted: var(--muted); --color-muted-foreground: var(--muted-foreground);
+ --color-accent: var(--accent); --color-accent-foreground: var(--primary);
+ --color-destructive: var(--destructive); --color-destructive-foreground: var(--primary-foreground);
+ --color-border: var(--border); --color-input: var(--border); --color-ring: var(--primary);
+ --color-gold: var(--gold); --color-gold-soft: var(--gold-soft);
+ --color-overlay: var(--overlay);
+ --radius-sm: 4px; --radius-md: 6px; --radius-lg: 8px; --radius-xl: 12px;
+}
+:root {
+ --background: oklch(0.977 0.003 165); --foreground: oklch(0.338 0.073 253);
+ --card: oklch(1 0 0); --primary: oklch(0.565 0.108 169); --primary-foreground: oklch(1 0 0);
+ --secondary: oklch(0.338 0.073 253); --secondary-foreground: oklch(1 0 0);
+ --muted: oklch(0.956 0.006 165); --muted-foreground: oklch(0.55 0.018 240);
+ --accent: oklch(0.951 0.025 169); --destructive: oklch(0.58 0.19 25);
+ --border: oklch(0.922 0.01 165); --gold: oklch(0.707 0.094 86); --gold-soft: oklch(0.966 0.022 86);
+ --overlay: oklch(0.22 0.03 253 / 45%);
+ --shadow-panel: 0 3px 18px oklch(0.338 0.073 253 / 3%);
+}
+@layer base {
+ * { border-color: var(--border); letter-spacing: 0; }
+ body { margin: 0; background: var(--background); color: var(--foreground); font-family: Arial, Tahoma, sans-serif; }
+ button, input, select, textarea { font: inherit; }
+ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+ input:not([type=checkbox]):not([type=file]), select, textarea { width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; background: var(--card); color: var(--foreground); outline: none; }
+ input:focus, select:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--accent); }
+ input[type=checkbox] { accent-color: var(--primary); width: 16px; height: 16px; }
+ label { font-size: 13px; font-weight: 600; }
+ label > input, label > textarea, label > select { margin-top: 7px; font-weight: 400; }
+}
+.portal-header { background: var(--card); border-top: 4px solid var(--primary); border-bottom: 1px solid var(--border); }
+.brand-mark { width: 43px; height: 43px; display: grid; place-items: center; background: var(--primary); color: var(--primary-foreground); border-radius: 8px; }
+.page-shell { max-width: 1460px; margin: 0 auto; padding: 32px 48px 20px; }
+.nav-tab { position: relative; height: 58px; border-radius: 0; color: var(--muted-foreground); font-weight: 600; }
+.nav-tab[data-active=true] { color: var(--primary); }
+.nav-tab[data-active=true]::after { content: ''; position: absolute; bottom: 0; right: 0; left: 0; height: 3px; background: var(--primary); border-radius: 3px 3px 0 0; }
+.panel { background: var(--card); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-panel); }
+.stat-card { padding: 22px; display: flex; align-items: center; justify-content: space-between; }
+.stat-icon { width: 45px; height: 45px; display: grid; place-items: center; border-radius: 8px; background: var(--accent); color: var(--primary); }
+.stat-icon.navy { background: var(--muted); color: var(--secondary); }
+.stat-icon.gold { background: var(--gold-soft); color: var(--gold); }
+.state { font-size: 12px; border-radius: 5px; padding: 4px 9px; display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
+.state::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.state-open { background: var(--accent); color: var(--primary); }
+.state-closed { background: var(--muted); color: var(--muted-foreground); }
+.state-expired { background: color-mix(in oklch, var(--destructive) 9%, var(--card)); color: var(--destructive); }
+.state-purged { background: var(--muted); color: var(--muted-foreground); opacity: .65; }
+.data-table { width: 100%; border-collapse: collapse; text-align: right; font-size: 13px; }
+.data-table th { padding: 15px 20px; color: var(--muted-foreground); font-weight: 400; background: var(--background); border-bottom: 1px solid var(--border); white-space: nowrap; }
+.data-table td { padding: 18px 20px; border-bottom: 1px solid var(--border); }
+.data-table tbody tr:last-child td { border-bottom: 0; }
+.data-table tbody tr:hover { background: color-mix(in oklch, var(--accent) 40%, var(--card)); }
+.file-symbol { width: 38px; height: 42px; display: grid; place-items: center; border-radius: 6px; background: var(--accent); color: var(--primary); flex-shrink: 0; }
+.empty-state { min-height: 245px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; text-align: center; padding: 32px; }
+.empty-icon { border: 1px solid var(--border); background: var(--background); border-radius: 12px; width: 62px; height: 62px; display: grid; place-items: center; color: var(--primary); }
+.detail-grid { display: grid; grid-template-columns: 1fr 320px; gap: 22px; }
+.drop-zone { border: 1px dashed var(--primary); background: var(--accent); border-radius: 8px; padding: 22px; text-align: center; }
+.qr-code svg { width: 160px; height: 160px; max-width: 100%; margin: auto; }
+.progress-track { height: 8px; background: var(--muted); border-radius: 4px; overflow: hidden; }
+.progress-track progress { width: 100%; height: 8px; accent-color: var(--primary); }
+@media (max-width: 800px) { .page-shell { padding: 22px 16px; } .detail-grid { grid-template-columns: 1fr; } .data-table th, .data-table td { padding: 14px 12px; } .stat-card { padding: 16px; } .nav-tab { padding-inline: 14px; font-size: 13px; } }
+@media (prefers-reduced-motion: no-preference) { .panel { animation: appear .3s ease both; } @keyframes appear { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } } }

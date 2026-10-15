@@ -1,0 +1,27 @@
+[Unit]
+Description=Details File Hub Pro new frontend (واجهة مركز المرفقات الجديدة) on 127.0.0.1:3501
+After=network-online.target details-files.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=details-files
+Group=details-files
+WorkingDirectory=/opt/details-filehub-ui
+Environment=PORT=3501
+Environment=HOST=127.0.0.1
+ExecStart=/usr/bin/node /opt/details-filehub-ui/.output/server/index.mjs
+Restart=on-failure
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+LimitNOFILE=65535
+
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
