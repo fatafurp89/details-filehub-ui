@@ -19,6 +19,8 @@ import {
   QrCode, 
   Sparkles, 
   Camera, 
+  Image,
+  FolderUp,
   Check, 
   Share2, 
   MessageSquare,
@@ -708,18 +710,55 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
                                     <span>{uploadState.progress}%</span>
                                   </div>
                                 ) : (
-                                  <button
-                                    onClick={() => handleSimulateFileUpload(item.name)}
-                                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-teal-50 hover:text-teal-800 text-slate-800 dark:text-slate-200 rounded-lg font-bold text-xs border border-slate-300 dark:border-slate-600 transition-colors cursor-pointer"
-                                  >
-                                    <Camera className="size-3.5" />
-                                    <span>{t.chooseOrSnap}</span>
-                                  </button>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <button
+                                      onClick={() => handleSimulateFileUpload(`${item.name}_كاميرا.jpg`)}
+                                      title="التقاط فوري عبر كاميرا الجوال"
+                                      className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-teal-50 hover:text-teal-800 text-slate-700 dark:text-slate-200 rounded-lg font-bold text-[11px] border border-slate-300 dark:border-slate-600 transition-colors cursor-pointer"
+                                    >
+                                      <Camera className="size-3.5 text-teal-600" />
+                                      <span className="hidden sm:inline">الكاميرا</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleSimulateFileUpload(`${item.name}_استديو.png`)}
+                                      title="اختيار من ألبوم الصور / استديو الجوال"
+                                      className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-teal-50 hover:text-teal-800 text-slate-700 dark:text-slate-200 rounded-lg font-bold text-[11px] border border-slate-300 dark:border-slate-600 transition-colors cursor-pointer"
+                                    >
+                                      <Image className="size-3.5 text-emerald-600" />
+                                      <span>الاستديو</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleSimulateFileUpload(`${item.name}.pdf`)}
+                                      title="تصفح ملفات الجوال والـ PDF"
+                                      className="flex items-center gap-1 px-2.5 py-1.5 bg-teal-50 dark:bg-teal-950/60 hover:bg-teal-100 text-teal-800 dark:text-teal-300 rounded-lg font-bold text-[11px] border border-teal-200 dark:border-teal-800 transition-colors cursor-pointer"
+                                    >
+                                      <FolderUp className="size-3.5 text-teal-700" />
+                                      <span>الملفات</span>
+                                    </button>
+                                  </div>
                                 )}
                               </div>
                             </div>
                           );
                         })}
+                      </div>
+
+                      {/* WhatsApp Automatic Hook Notice for Clients */}
+                      <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl flex items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-2.5 text-emerald-900 dark:text-emerald-200">
+                          <div className="size-7 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                            <MessageSquare className="size-4" />
+                          </div>
+                          <div>
+                            <span className="font-bold">هل تفضل الإرسال عبر واتساب مباشرة؟</span>
+                            <p className="text-[11px] text-emerald-700 dark:text-emerald-300 mt-0.5">
+                              يمكنك أيضاً الرد وإرفاق المستندات مباشرة في محادثة واتساب ديتيلز الرسمية، وسيتم تسجيلها فوراً بالمعاملة دون الحاجة لفتح هذا الرابط.
+                            </p>
+                          </div>
+                        </div>
+                        <span className="hidden md:inline-block text-[10px] font-mono bg-emerald-200/70 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-300 px-2 py-1 rounded-md font-bold whitespace-nowrap">
+                          Webhook نشط ⚡
+                        </span>
                       </div>
 
                       {/* Drop zone with mobile camera support notice */}
