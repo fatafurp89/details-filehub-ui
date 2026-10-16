@@ -28,7 +28,14 @@ import {
   Shield,
   Layers,
   Archive,
-  RefreshCw
+  RefreshCw,
+  Sun,
+  Moon,
+  Globe,
+  SlidersHorizontal,
+  FileSpreadsheet,
+  FileCode,
+  CheckCheck
 } from 'lucide-react';
 import { LegalMarginBar } from './LegalMarginBar';
 
@@ -59,13 +66,16 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
   if (!isOpen) return null;
 
   const [deviceView, setDeviceView] = useState<'desktop' | 'mobile'>('desktop');
+  const [lang, setLang] = useState<'ar' | 'en'>('ar');
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, { size: string; progress: number; ready: boolean; sha256?: string }>>({});
-  const [activePreviewDoc, setActivePreviewDoc] = useState<{ name: string; type: string } | null>(null);
+  const [activePreviewDoc, setActivePreviewDoc] = useState<{ name: string; type: string; sha256: string } | null>(null);
   const [watermarkEnabled, setWatermarkEnabled] = useState(true);
   const [dragActive, setDragActive] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [downloadAllProgress, setDownloadAllProgress] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
+  const [auditLogActive, setAuditLogActive] = useState(false);
 
   const defaultFiles = [
     { name: 'مخطط_السلامة_والدفاع_المدني_المعتمد.dwg', size: '14.2 MB', pages: 1, verified: true, type: 'cad' as const, sha256: '9a8b1...3f12' },
@@ -75,6 +85,12 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
   ];
 
   const filesList = data.files || defaultFiles;
+
+  const simulatedAuditEvents = [
+    { time: '04:52', event: 'تم إنشاء الرابط وتوقيعه رقمياً', actor: 'النظام (Hetzner Storage)' },
+    { time: '04:55', event: 'فحص الحماية من الفيروسات والبرمجيات الخبيثة', actor: 'DLP Sentinel' },
+    { time: '04:58', event: 'تطبيق العلامة المائية باسم ' + data.targetEntity, actor: 'خدمة توليد الوثائق' }
+  ];
 
   const handleSimulateFileUpload = (itemName: string) => {
     setUploadedFiles(prev => ({
@@ -103,8 +119,57 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
+  const t = {
+    ar: {
+      brandTitle: 'ديتيلز للاستشارات الهندسية',
+      subTitle: 'منصة الوثائق الهندسية المعتمدة · كود البناء السعودي',
+      entityTag: 'الجهة المصرح لها بالاطلاع والتنفيذ',
+      reqId: 'رمز الطلب',
+      trxId: 'رقم المعاملة',
+      expiresIn: 'ينتهي الرابط في',
+      readyDocs: 'المستندات الهندسية المتاحة للتنزيل الفوري',
+      downloadZip: 'تنزيل الكل ZIP',
+      downloadingZip: 'جارٍ تجهيز الحزمة...',
+      remainingDownloads: 'متبقي تنزيلات',
+      verified: 'مفحوص ومطابق',
+      preview: 'معاينة',
+      download: 'تنزيل',
+      requiredUploads: 'المستندات المطلوبة لاستكمال المعاملة',
+      mandatory: 'إلزامي',
+      optional: 'اختياري',
+      chooseOrSnap: 'اختيار أو تصوير',
+      readyToSend: 'جاهز للإرسال',
+      dragDropTitle: 'اسحب وأفلت الملفات الإضافية هنا أو اضغط للاختيار',
+      dragDropSubtitle: 'يدعم التخزين عبر سحابة Hetzner Storage · الحد الأقصى للملف: 100MB',
+      sslNotice: 'تشفير 256-bit SSL · Hetzner Storage Box'
+    },
+    en: {
+      brandTitle: 'Details Engineering Consulting',
+      subTitle: 'Official Certified Document Portal · Saudi Building Code',
+      entityTag: 'Authorized Organization / Client',
+      reqId: 'Request ID',
+      trxId: 'Transaction Ref',
+      expiresIn: 'Expires at',
+      readyDocs: 'Approved Documents Available for Download',
+      downloadZip: 'Download All ZIP',
+      downloadingZip: 'Packaging ZIP...',
+      remainingDownloads: 'Remaining Downloads',
+      verified: 'Verified & Clean',
+      preview: 'Preview',
+      download: 'Download',
+      requiredUploads: 'Required Documents to Complete Process',
+      mandatory: 'Mandatory',
+      optional: 'Optional',
+      chooseOrSnap: 'Choose / Camera',
+      readyToSend: 'Ready to submit',
+      dragDropTitle: 'Drag & Drop additional files here or click to browse',
+      dragDropSubtitle: 'Direct Hetzner Cloud Storage · Max file size: 100MB',
+      sslNotice: '256-bit SSL Encryption · Hetzner Storage Box'
+    }
+  }[lang];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-2 md:p-6 select-none font-sans">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-2 md:p-6 select-none font-sans">
       <div 
         dir="rtl"
         className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-6xl h-[96vh] flex flex-col overflow-hidden text-right animate-in fade-in zoom-in-95 duration-150"
@@ -129,7 +194,26 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 md:gap-3">
+          <div className="flex items-center gap-2 md:gap-2.5">
+            {/* Language Switcher */}
+            <button
+              onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-200 cursor-pointer"
+              title="تبديل لغة صفحة العميل"
+            >
+              <Globe className="size-3.5 text-teal-400" />
+              <span className="font-mono">{lang === 'ar' ? 'English' : 'عربي'}</span>
+            </button>
+
+            {/* Dark/Light Client Preview Toggle */}
+            <button
+              onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+              className="p-1.5 bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-200 rounded-lg cursor-pointer"
+              title={theme === 'light' ? 'تحويل صفحة العميل للوضع الليلي' : 'تحويل صفحة العميل للوضع الفاتح'}
+            >
+              {theme === 'light' ? <Moon className="size-4 text-amber-300" /> : <Sun className="size-4 text-amber-400" />}
+            </button>
+
             {/* Watermark toggle */}
             <button
               onClick={() => setWatermarkEnabled(!watermarkEnabled)}
@@ -140,6 +224,18 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
               <Shield className="size-3.5" />
               <span className="hidden sm:inline">العلامة المائية:</span>
               <span>{watermarkEnabled ? 'مفعلة' : 'معطلة'}</span>
+            </button>
+
+            {/* Audit Log Toggle */}
+            <button
+              onClick={() => setAuditLogActive(!auditLogActive)}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border cursor-pointer ${
+                auditLogActive ? 'bg-amber-900/60 border-amber-500 text-amber-200' : 'bg-slate-700 border-slate-600 text-slate-300'
+              }`}
+              title="سجل العمليات الأمني المباشر"
+            >
+              <SlidersHorizontal className="size-3.5" />
+              <span className="hidden md:inline">سجل الأمان</span>
             </button>
 
             {/* Device Switcher */}
@@ -173,15 +269,6 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
               <QrCode className="size-4" />
             </button>
 
-            {/* Copy Link */}
-            <button
-              onClick={handleCopyLink}
-              className="flex items-center gap-1 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-200 hover:text-white rounded-lg text-xs font-medium cursor-pointer"
-            >
-              {copiedLink ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
-              <span className="hidden md:inline">{copiedLink ? 'تم النسخ' : 'نسخ الرابط'}</span>
-            </button>
-
             <button 
               onClick={onClose}
               className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 cursor-pointer"
@@ -209,8 +296,39 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
             </div>
           )}
 
+          {/* Side Drawer: Security Audit Trace */}
+          {auditLogActive && (
+            <div className="absolute left-4 top-4 bottom-4 w-72 bg-slate-900/95 border border-slate-700 rounded-xl p-4 z-30 shadow-2xl overflow-y-auto space-y-3 text-xs text-slate-300">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-700 font-bold text-white">
+                <span className="flex items-center gap-1.5">
+                  <ShieldCheck className="size-4 text-teal-400" />
+                  <span>سجل التدقيق والأمان</span>
+                </span>
+                <button onClick={() => setAuditLogActive(false)}><X className="size-3.5" /></button>
+              </div>
+              <div className="space-y-2 font-mono text-[11px]">
+                {simulatedAuditEvents.map((evt, idx) => (
+                  <div key={idx} className="p-2 rounded bg-slate-800/80 border border-slate-700/60 space-y-0.5">
+                    <div className="flex justify-between text-teal-400">
+                      <span>{evt.actor}</span>
+                      <span>{evt.time}</span>
+                    </div>
+                    <div className="text-slate-300 font-sans">{evt.event}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="p-2 bg-teal-950/60 border border-teal-800/80 rounded text-[10px] text-teal-300 leading-normal">
+                كل عملية فتح أو تنزيل تُسجل بعنوان IP وبصمة المتصفح دون كشف مسار السيرفر.
+              </div>
+            </div>
+          )}
+
+          {/* The Client Container */}
           <div 
-            className={`transition-all duration-300 bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200 flex flex-col ${
+            dir={lang === 'ar' ? 'rtl' : 'ltr'}
+            className={`transition-all duration-300 rounded-2xl shadow-2xl overflow-hidden border flex flex-col ${
+              theme === 'dark' ? 'bg-slate-900 text-slate-100 border-slate-800' : 'bg-white text-slate-800 border-slate-200'
+            } ${
               deviceView === 'desktop' 
                 ? 'w-full max-w-4xl min-h-[620px]' 
                 : 'w-[380px] h-[700px] rounded-[44px] border-[10px] border-slate-800 shadow-[0_0_60px_rgba(0,0,0,0.85)]'
@@ -227,20 +345,20 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
                   </div>
                   <div>
                     <h1 className="text-base md:text-lg font-black tracking-tight flex items-center gap-2">
-                      ديتيلز للاستشارات الهندسية
+                      {t.brandTitle}
                       <span className="text-[10px] font-mono font-normal bg-teal-500/20 text-teal-300 border border-teal-400/30 px-2 py-0.5 rounded-full">
-                        منصة الوثائق المعتمدة
+                        {lang === 'ar' ? 'منصة الوثائق المعتمدة' : 'Official Portal'}
                       </span>
                     </h1>
                     <div className="text-[11px] text-teal-300/90 font-medium mt-0.5">
-                      Details Engineering Consulting · معتمدة من الهيئة السعودية للمهندسين
+                      {t.subTitle}
                     </div>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3">
                   <div className="text-left hidden sm:block">
-                    <div className="text-[10px] text-slate-400 font-mono">سيرفر التخزين السحابي</div>
+                    <div className="text-[10px] text-slate-400 font-mono">Storage Node</div>
                     <div className="text-[11px] font-bold text-teal-300 flex items-center gap-1 font-mono">
                       <HardDrive className="size-3" />
                       <span>Hetzner Storage Box (Protected)</span>
@@ -255,40 +373,44 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
               {/* Context bar with Transaction reference & Expiration */}
               <div className="mt-4 pt-3 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs">
                 <div className="flex items-center gap-2">
-                  <span className="text-slate-400 text-[11px]">رمز الطلب:</span>
+                  <span className="text-slate-400 text-[11px]">{t.reqId}:</span>
                   <span className="font-mono font-bold text-amber-300">{data.reference}</span>
-                  <span className="text-slate-400 mr-2 text-[11px]">رقم المعاملة:</span>
+                  <span className="text-slate-400 mr-2 text-[11px]">{t.trxId}:</span>
                   <span className="font-mono bg-teal-900/80 text-teal-200 px-2.5 py-0.5 rounded border border-teal-700/80 font-bold">
                     {data.transactionRef}
                   </span>
                 </div>
                 <div className="text-slate-300 flex items-center gap-1 font-mono text-[11px]">
                   <Clock className="size-3.5 text-amber-400" />
-                  <span>ينتهي الرابط في: <strong>{data.expiresAt}</strong></span>
+                  <span>{t.expiresIn}: <strong>{data.expiresAt}</strong></span>
                 </div>
               </div>
             </div>
 
             {/* Landing Body Content */}
-            <div className="p-4 md:p-6 flex-1 overflow-y-auto space-y-4 md:space-y-5 bg-slate-50/70 text-xs">
+            <div className={`p-4 md:p-6 flex-1 overflow-y-auto space-y-4 md:space-y-5 text-xs ${
+              theme === 'dark' ? 'bg-slate-900/90' : 'bg-slate-50/70'
+            }`}>
               {/* Target Entity Card */}
-              <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex items-start justify-between gap-3">
+              <div className={`p-4 rounded-xl border shadow-xs flex items-start justify-between gap-3 ${
+                theme === 'dark' ? 'bg-slate-800/90 border-slate-700' : 'bg-white border-slate-200/80'
+              }`}>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200">
-                      الجهة المصرح لها بالاطلاع والتنفيذ
+                      {t.entityTag}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-mono">تشفير 256-bit SSL</span>
+                    <span className="text-[10px] text-slate-400 font-mono">{t.sslNotice}</span>
                   </div>
-                  <h2 className="text-sm md:text-base font-bold text-slate-900 pt-0.5">
+                  <h2 className="text-sm md:text-base font-bold pt-0.5">
                     {data.targetEntity}
                   </h2>
-                  <p className="text-slate-600 leading-relaxed text-xs">
+                  <p className="text-slate-500 leading-relaxed text-xs">
                     {data.description || 'يسرنا تزويدكم بالوثائق والتقارير الهندسية المعتمدة للمشروع. يرجى التنزيل قبل انتهاء الصلاحية المحددة للرابط.'}
                   </p>
                 </div>
-                <div className="size-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
-                  <Lock className="size-5 text-teal-700" />
+                <div className="size-10 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 shrink-0">
+                  <Lock className="size-5 text-teal-700 dark:text-teal-400" />
                 </div>
               </div>
 
@@ -296,23 +418,23 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
               {type === 'file_download' && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between flex-wrap gap-2">
-                    <h3 className="font-bold text-slate-900 text-xs flex items-center gap-2">
-                      <FileCheck2 className="size-4 text-teal-700" />
-                      المستندات الهندسية المتاحة للتنزيل الفوري ({filesList.length})
+                    <h3 className="font-bold text-xs flex items-center gap-2">
+                      <FileCheck2 className="size-4 text-teal-700 dark:text-teal-400" />
+                      {t.readyDocs} ({filesList.length})
                     </h3>
                     
                     <div className="flex items-center gap-2">
                       <button
                         onClick={handleDownloadAllZip}
                         disabled={downloadAllProgress}
-                        className="flex items-center gap-1.5 px-3 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-xs disabled:bg-slate-400"
+                        className="flex items-center gap-1.5 px-3 py-1 bg-slate-800 dark:bg-teal-700 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-xs disabled:bg-slate-400"
                       >
                         <Archive className={`size-3.5 ${downloadAllProgress ? 'animate-spin' : ''}`} />
-                        <span>{downloadAllProgress ? 'جارٍ تجميع الحزمة...' : 'تنزيل الكل في ملف ZIP'}</span>
+                        <span>{downloadAllProgress ? t.downloadingZip : t.downloadZip}</span>
                       </button>
                       
                       <span className="text-[11px] text-emerald-800 font-bold bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-200 font-mono">
-                        متبقي {data.remainingDownloads || 4} تنزيلات
+                        {t.remainingDownloads} {data.remainingDownloads || 4}
                       </span>
                     </div>
                   </div>
@@ -321,7 +443,9 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
                     {filesList.map((f, i) => (
                       <div 
                         key={i}
-                        className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between hover:border-teal-500 transition-all group"
+                        className={`p-3.5 rounded-xl border shadow-xs flex items-center justify-between transition-all group ${
+                          theme === 'dark' ? 'bg-slate-800/80 border-slate-700 hover:border-teal-500' : 'bg-white border-slate-200/80 hover:border-teal-500'
+                        }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <div className={`size-10 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
@@ -330,16 +454,16 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
                             {f.type === 'cad' ? 'CAD' : f.type === 'doc' ? 'XLS' : 'PDF'}
                           </div>
                           <div className="min-w-0">
-                            <div className="font-bold text-slate-900 text-xs truncate" title={f.name}>
+                            <div className="font-bold text-xs truncate" title={f.name}>
                               {f.name}
                             </div>
                             <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 font-mono">
                               <span>{f.size}</span>
                               <span>·</span>
-                              <span>{f.pages} صفحات</span>
+                              <span>{f.pages} {lang === 'ar' ? 'صفحات' : 'pages'}</span>
                               <span>·</span>
-                              <span className="text-emerald-700 font-semibold flex items-center gap-1 font-sans">
-                                <CheckCircle2 className="size-3 text-emerald-600" /> مفحوص ومطابق
+                              <span className="text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1 font-sans">
+                                <CheckCircle2 className="size-3" /> {t.verified}
                               </span>
                             </div>
                           </div>
@@ -347,15 +471,17 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
 
                         <div className="flex items-center gap-2 shrink-0">
                           <button 
-                            onClick={() => setActivePreviewDoc({ name: f.name, type: f.type || 'pdf' })}
-                            className="flex items-center gap-1 px-2.5 py-1.5 text-slate-600 hover:text-teal-800 hover:bg-teal-50 border border-slate-200 rounded-lg cursor-pointer text-[11px] font-medium"
+                            onClick={() => setActivePreviewDoc({ name: f.name, type: f.type || 'pdf', sha256: f.sha256 || '4f1a...9981' })}
+                            className={`flex items-center gap-1 px-2.5 py-1.5 border rounded-lg cursor-pointer text-[11px] font-medium transition-colors ${
+                              theme === 'dark' ? 'border-slate-700 text-slate-300 hover:bg-slate-700' : 'border-slate-200 text-slate-600 hover:text-teal-800 hover:bg-teal-50'
+                            }`}
                           >
                             <Eye className="size-3.5 text-teal-600" />
-                            <span>معاينة</span>
+                            <span>{t.preview}</span>
                           </button>
-                          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-bold text-xs shadow-xs cursor-pointer">
+                          <button className="flex items-center gap-1.5 px-3.5 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-bold text-xs shadow-xs cursor-pointer">
                             <Download className="size-3.5" />
-                            <span>تنزيل</span>
+                            <span>{t.download}</span>
                           </button>
                         </div>
                       </div>
@@ -368,7 +494,7 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-xs font-bold text-teal-300">
                           <Eye className="size-4" />
-                          <span>معاينة حية للمستند: {activePreviewDoc.name}</span>
+                          <span>{t.preview}: {activePreviewDoc.name}</span>
                         </div>
                         <button onClick={() => setActivePreviewDoc(null)} className="text-slate-400 hover:text-white">
                           <X className="size-4" />
@@ -381,9 +507,9 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
                           </div>
                         )}
                         <FileText className="size-10 text-teal-500 mb-2 opacity-80" />
-                        <span className="font-semibold text-slate-300">مستند رسمي معتمد من شركة ديتيلز للاستشارات الهندسية</span>
+                        <span className="font-semibold text-slate-300">{t.brandTitle}</span>
                         <span className="text-[11px] text-slate-500 mt-1 font-mono">
-                          SHA-256 Verified · تم فحص التوقيع الرقمي للنسخة
+                          SHA-256: {activePreviewDoc.sha256} · Hetzner Storage Verified
                         </span>
                       </div>
                     </div>
@@ -402,13 +528,10 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
               {type === 'upload_request' && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-slate-900 text-xs flex items-center gap-2">
-                      <Upload className="size-4 text-teal-700" />
-                      المستندات المطلوبة لاستكمال المعاملة:
+                    <h3 className="font-bold text-xs flex items-center gap-2">
+                      <Upload className="size-4 text-teal-700 dark:text-teal-400" />
+                      {t.requiredUploads}
                     </h3>
-                    <span className="text-[11px] text-slate-500">
-                      * يرجى إرفاق الوثائق المطلوبة بصيغة واضحة
-                    </span>
                   </div>
 
                   <div className="space-y-2.5">
@@ -423,19 +546,19 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
                           key={i}
                           className={`p-3.5 rounded-xl border transition-all ${
                             uploadState?.ready 
-                              ? 'bg-emerald-50/70 border-emerald-300' 
-                              : 'bg-white border-slate-200/80'
+                              ? 'bg-emerald-50/70 border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800' 
+                              : theme === 'dark' ? 'bg-slate-800/80 border-slate-700' : 'bg-white border-slate-200/80'
                           }`}
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="space-y-0.5">
                               <div className="flex items-center gap-2">
                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                  item.isRequired ? 'bg-red-100 text-red-800' : 'bg-slate-100 text-slate-700'
+                                  item.isRequired ? 'bg-red-100 text-red-800' : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
                                 }`}>
-                                  {item.isRequired ? 'إلزامي' : 'اختياري'}
+                                  {item.isRequired ? t.mandatory : t.optional}
                                 </span>
-                                <span className="font-bold text-slate-900 text-xs">{item.name}</span>
+                                <span className="font-bold text-xs">{item.name}</span>
                               </div>
                               {item.tip && (
                                 <p className="text-[11px] text-slate-500">{item.tip}</p>
@@ -443,22 +566,22 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
                             </div>
 
                             {uploadState?.ready ? (
-                              <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs bg-emerald-100 px-3 py-1 rounded-lg">
-                                <CheckCircle2 className="size-4 text-emerald-600" />
-                                <span>جاهز للإرسال ({uploadState.size})</span>
+                              <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-bold text-xs bg-emerald-100 dark:bg-emerald-900/60 px-3 py-1 rounded-lg">
+                                <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
+                                <span>{t.readyToSend} ({uploadState.size})</span>
                               </div>
                             ) : uploadState ? (
                               <div className="flex items-center gap-2 text-teal-700 text-xs font-mono">
                                 <RefreshCw className="size-3.5 animate-spin" />
-                                <span>جارٍ الرفع {uploadState.progress}%...</span>
+                                <span>{uploadState.progress}%</span>
                               </div>
                             ) : (
                               <button
                                 onClick={() => handleSimulateFileUpload(item.name)}
-                                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 hover:bg-teal-50 hover:text-teal-800 hover:border-teal-300 text-slate-800 rounded-lg font-bold text-xs border border-slate-300 transition-colors cursor-pointer"
+                                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-teal-50 hover:text-teal-800 text-slate-800 dark:text-slate-200 rounded-lg font-bold text-xs border border-slate-300 dark:border-slate-600 transition-colors cursor-pointer"
                               >
                                 <Camera className="size-3.5" />
-                                <span>اختيار أو تصوير</span>
+                                <span>{t.chooseOrSnap}</span>
                               </button>
                             )}
                           </div>
@@ -473,13 +596,13 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
                     onDragLeave={() => setDragActive(false)}
                     onDrop={(e) => { e.preventDefault(); setDragActive(false); handleSimulateFileUpload('وثيقة_إضافية_مرفوعة.pdf'); }}
                     className={`border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer ${
-                      dragActive ? 'border-teal-600 bg-teal-50' : 'border-slate-300 bg-white hover:border-teal-500'
+                      dragActive ? 'border-teal-600 bg-teal-50 dark:bg-teal-950/40' : theme === 'dark' ? 'border-slate-700 bg-slate-800/60' : 'border-slate-300 bg-white hover:border-teal-500'
                     }`}
                   >
                     <Upload className="size-8 text-teal-600 mx-auto mb-2" />
-                    <div className="font-bold text-slate-800 text-xs">اسحب وأفلت الملفات الإضافية هنا أو اضغط للاختيار</div>
+                    <div className="font-bold text-xs">{t.dragDropTitle}</div>
                     <div className="text-[11px] text-slate-500 mt-1">
-                      يدعم التخزين عبر سحابة Hetzner Storage · الحد الأقصى للملف الواحد: 100 ميجابايت
+                      {t.dragDropSubtitle}
                     </div>
                   </div>
                 </div>
@@ -487,7 +610,7 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
             </div>
 
             {/* Footer with Legal Margin Bar */}
-            <div className="bg-white border-t border-slate-200">
+            <div className={theme === 'dark' ? 'bg-slate-900 border-t border-slate-800' : 'bg-white border-t border-slate-200'}>
               <LegalMarginBar 
                 referenceNumber={data.reference}
                 statusLabel="بوابة إلكترونية مشفرة"
