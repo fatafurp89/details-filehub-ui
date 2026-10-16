@@ -26,6 +26,8 @@ import { SendExternalDialog } from '@/components/SendExternalDialog';
 import { ExternalLinkModal } from '@/components/ExternalLinkModal';
 import { CenterSettingsView } from '@/components/CenterSettingsView';
 import { PublicLandingPreviewModal } from '@/components/PublicLandingPreviewModal';
+import { QuickSendModal } from '@/components/QuickSendModal';
+import { QuickRequestModal } from '@/components/QuickRequestModal';
 
 import { 
   initialStats, 
@@ -65,6 +67,10 @@ function DocumentCenterMainPage() {
   const [selectedOpForLink, setSelectedOpForLink] = useState<OperationRecord | null>(null);
   const [selectedPkgForSend, setSelectedPkgForSend] = useState<OutboundPackage | null>(null);
   const [notice, setNotice] = useState<string>('');
+  
+  // Quick Send & Request Modals
+  const [quickSendOpen, setQuickSendOpen] = useState(false);
+  const [quickRequestOpen, setQuickRequestOpen] = useState(false);
   
   // Public landing preview state
   const [landingPreview, setLandingPreview] = useState<{
@@ -233,6 +239,8 @@ function DocumentCenterMainPage() {
               else setNotice(`عرض تفاصيل العملية: ${op.reference}`);
             }}
             onOpenLinkModal={(op) => setSelectedOpForLink(op)}
+            onQuickSend={() => setQuickSendOpen(true)}
+            onQuickRequest={() => setQuickRequestOpen(true)}
           />
         )}
 
@@ -241,6 +249,8 @@ function DocumentCenterMainPage() {
             operations={operations.filter(x => x.direction === 'inbound')}
             onViewOperation={(op) => setSelectedOpForLink(op)}
             onOpenLinkModal={(op) => setSelectedOpForLink(op)}
+            onQuickSend={() => setQuickSendOpen(true)}
+            onQuickRequest={() => setQuickRequestOpen(true)}
           />
         )}
 
@@ -249,6 +259,8 @@ function DocumentCenterMainPage() {
             operations={operations.filter(x => x.direction === 'outbound')}
             onViewOperation={(op) => setSelectedOpForLink(op)}
             onOpenLinkModal={(op) => setSelectedOpForLink(op)}
+            onQuickSend={() => setQuickSendOpen(true)}
+            onQuickRequest={() => setQuickRequestOpen(true)}
           />
         )}
 
@@ -341,6 +353,86 @@ function DocumentCenterMainPage() {
           onExtendLink={(id) => {
             setNotice(`تم تمديد صلاحية الرابط للعملية ${id} لمدة 7 أيام.`);
             setSelectedOpForLink(null);
+          }}
+        />
+      )}
+
+      {/* Quick Send Modal */}
+      {quickSendOpen && (
+        <QuickSendModal 
+          isOpen={quickSendOpen}
+          onClose={() => setQuickSendOpen(false)}
+          session={session}
+          onPreviewRequested={(previewData) => {
+            setLandingPreview({
+              isOpen: true,
+              type: 'file_download',
+              data: previewData
+            });
+          }}
+          onLinkCreated={(item) => {
+            const newOp: OperationRecord = {
+              id: `OP-${Date.now()}`,
+              reference: item.reference,
+              direction: 'outbound',
+              sourceOrDestination: item.targetEntity,
+              documentTitle: item.title,
+              linkedEntity: {
+                type: 'transaction',
+                referenceNumber: 'TRX-2026-HETZNER',
+                title: item.title
+              },
+              method: 'link',
+              status: 'delivered',
+              statusLabel: 'تم توليد الرابط وتتبعه',
+              timestamp: '2026-10-16 17:15',
+              ownerName: session?.employee.name || 'م. راكان التميمي',
+              sensitivity: 'restricted',
+              linkToken: item.reference
+            };
+            setOperations(prev => [newOp, ...prev]);
+            setQuickSendOpen(false);
+            setNotice(`تم إنشاء الرابط بنجاح: ${item.url}`);
+          }}
+        />
+      )}
+
+      {/* Quick Request Modal */}
+      {quickRequestOpen && (
+        <QuickRequestModal 
+          isOpen={quickRequestOpen}
+          onClose={() => setQuickRequestOpen(false)}
+          session={session}
+          onPreviewRequested={(previewData) => {
+            setLandingPreview({
+              isOpen: true,
+              type: 'upload_request',
+              data: previewData
+            });
+          }}
+          onRequestCreated={(item) => {
+            const newOp: OperationRecord = {
+              id: `OP-${Date.now()}`,
+              reference: item.reference,
+              direction: 'request',
+              sourceOrDestination: item.targetEntity,
+              documentTitle: item.title,
+              linkedEntity: {
+                type: 'transaction',
+                referenceNumber: 'TRX-REQ-2026',
+                title: item.title
+              },
+              method: 'link',
+              status: 'awaiting_reply',
+              statusLabel: 'بانتظار رفع العميل',
+              timestamp: '2026-10-16 17:15',
+              ownerName: session?.employee.name || 'م. راكان التميمي',
+              sensitivity: 'restricted',
+              linkToken: item.reference
+            };
+            setOperations(prev => [newOp, ...prev]);
+            setQuickRequestOpen(false);
+            setNotice(`تم إنشاء رابط طلب الوثائق بنجاح: ${item.url}`);
           }}
         />
       )}

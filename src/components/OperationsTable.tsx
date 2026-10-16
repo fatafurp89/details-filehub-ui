@@ -22,12 +22,16 @@ interface OperationsTableProps {
   operations: OperationRecord[];
   onViewOperation: (op: OperationRecord) => void;
   onOpenLinkModal?: (op: OperationRecord) => void;
+  onQuickSend?: () => void;
+  onQuickRequest?: () => void;
 }
 
 export const OperationsTable: React.FC<OperationsTableProps> = ({
   operations,
   onViewOperation,
-  onOpenLinkModal
+  onOpenLinkModal,
+  onQuickSend,
+  onQuickRequest
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [directionFilter, setDirectionFilter] = useState<string>('all');
@@ -104,6 +108,26 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {onQuickSend && (
+            <button
+              onClick={onQuickSend}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-md text-xs font-bold shadow-xs cursor-pointer transition-colors"
+            >
+              <Send className="size-3.5" />
+              <span>إرسال ملفات / رابط سريع</span>
+            </button>
+          )}
+
+          {onQuickRequest && (
+            <button
+              onClick={onQuickRequest}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-md text-xs font-bold shadow-xs cursor-pointer transition-colors"
+            >
+              <Inbox className="size-3.5" />
+              <span>طلب وثائق برابط آمن</span>
+            </button>
+          )}
+
           <select
             value={directionFilter}
             onChange={(e) => setDirectionFilter(e.target.value)}
