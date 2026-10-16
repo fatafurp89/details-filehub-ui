@@ -12,17 +12,23 @@ import {
   Barcode, 
   Smartphone, 
   Monitor, 
-  X,
-  FileCheck2,
-  HardDrive,
-  Eye,
-  QrCode,
-  Sparkles,
-  Camera,
-  Check,
-  Share2,
+  X, 
+  FileCheck2, 
+  HardDrive, 
+  Eye, 
+  QrCode, 
+  Sparkles, 
+  Camera, 
+  Check, 
+  Share2, 
+  MessageSquare,
   HelpCircle,
-  Maximize2
+  Copy,
+  ExternalLink,
+  Shield,
+  Layers,
+  Archive,
+  RefreshCw
 } from 'lucide-react';
 import { LegalMarginBar } from './LegalMarginBar';
 
@@ -39,7 +45,7 @@ interface PublicLandingPreviewModalProps {
     expiresAt: string;
     maxDownloads?: number;
     remainingDownloads?: number;
-    files?: { name: string; size: string; pages: number; verified: boolean; previewUrl?: string }[];
+    files?: { name: string; size: string; pages: number; verified: boolean; sha256?: string; type?: 'cad' | 'pdf' | 'doc' }[];
     requiredItems?: { name: string; isRequired: boolean; ext: string; tip?: string }[];
   };
 }
@@ -53,23 +59,42 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
   if (!isOpen) return null;
 
   const [deviceView, setDeviceView] = useState<'desktop' | 'mobile'>('desktop');
-  const [uploadedFiles, setUploadedFiles] = useState<Record<string, { size: string; progress: number; ready: boolean }>>({});
-  const [activePreviewDoc, setActivePreviewDoc] = useState<string | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<Record<string, { size: string; progress: number; ready: boolean; sha256?: string }>>({});
+  const [activePreviewDoc, setActivePreviewDoc] = useState<{ name: string; type: string } | null>(null);
+  const [watermarkEnabled, setWatermarkEnabled] = useState(true);
   const [dragActive, setDragActive] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [downloadAllProgress, setDownloadAllProgress] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
+
+  const defaultFiles = [
+    { name: 'مخطط_السلامة_والدفاع_المدني_المعتمد.dwg', size: '14.2 MB', pages: 1, verified: true, type: 'cad' as const, sha256: '9a8b1...3f12' },
+    { name: 'تقرير_الجسات_واختبار_التربة_الإنشائي.pdf', size: '4.8 MB', pages: 8, verified: true, type: 'pdf' as const, sha256: '7c4d2...8e90' },
+    { name: 'خطاب_الإحالة_والتوجيه_الرسمي_للبلدية.pdf', size: '820 KB', pages: 2, verified: true, type: 'pdf' as const, sha256: '1e3f8...5b44' },
+    { name: 'جدول_الكميات_والمواصفات_الهندسية.xlsx', size: '1.2 MB', pages: 4, verified: true, type: 'doc' as const, sha256: '5a2c9...6f11' }
+  ];
+
+  const filesList = data.files || defaultFiles;
 
   const handleSimulateFileUpload = (itemName: string) => {
     setUploadedFiles(prev => ({
       ...prev,
-      [itemName]: { size: '2.4 MB', progress: 40, ready: false }
+      [itemName]: { size: '3.1 MB', progress: 35, ready: false }
     }));
 
     setTimeout(() => {
       setUploadedFiles(prev => ({
         ...prev,
-        [itemName]: { size: '2.4 MB', progress: 100, ready: true }
+        [itemName]: { size: '3.1 MB', progress: 100, ready: true, sha256: 'e89c...2041' }
       }));
-    }, 700);
+    }, 600);
+  };
+
+  const handleDownloadAllZip = () => {
+    setDownloadAllProgress(true);
+    setTimeout(() => {
+      setDownloadAllProgress(false);
+    }, 1500);
   };
 
   const handleCopyLink = () => {
@@ -79,57 +104,82 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 md:p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-2 md:p-6 select-none font-sans">
       <div 
         dir="rtl"
-        className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-6xl h-[95vh] flex flex-col overflow-hidden text-right font-sans animate-in fade-in zoom-in-95 duration-150"
+        className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-6xl h-[96vh] flex flex-col overflow-hidden text-right animate-in fade-in zoom-in-95 duration-150"
       >
-        {/* Top Control Bar for Engineering Office Staff */}
-        <div className="p-3.5 bg-slate-800/90 border-b border-slate-700 flex flex-wrap items-center justify-between gap-3 text-white">
+        {/* Top Control Bar for Staff */}
+        <div className="p-3 md:p-3.5 bg-slate-800/95 border-b border-slate-700 flex flex-wrap items-center justify-between gap-3 text-white shrink-0">
           <div className="flex items-center gap-3">
-            <span className="size-2.5 rounded-full bg-emerald-400 animate-ping" />
+            <span className="relative flex size-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75" />
+              <span className="relative inline-flex rounded-full size-3 bg-teal-500" />
+            </span>
             <div>
-              <h3 className="text-xs font-bold text-slate-100 flex items-center gap-2">
-                <span>معاينة حية وتفاعلية لصفحة العميل (Client Interactive Portal)</span>
+              <h3 className="text-xs md:text-sm font-bold text-slate-100 flex items-center gap-2">
+                <span>معاينة حية ومباشرة لصفحة العميل (Hetzner Cloud Storage Portal)</span>
                 <span className="text-[10px] bg-teal-500/20 text-teal-300 border border-teal-500/40 px-2 py-0.5 rounded-full font-mono">
-                  {type === 'upload_request' ? 'بوابة رفع وثائق آمنة' : 'بوابة تنزيل مستندات معتمدة'}
+                  {type === 'upload_request' ? 'بوابة استلام ملفات' : 'بوابة تنزيل مستندات معتمدة'}
                 </span>
               </h3>
-              <div className="text-[11px] text-slate-400 mt-0.5">
-                تكامل مباشر مع Hetzner Storage Box · تشفير مسارات · فحص أمني فوري
+              <div className="text-[11px] text-slate-400 mt-0.5 hidden sm:block">
+                تأكد من هوية المستندات والعلامة المائية قبل الإرسال للعميل أو الجهة الخارجية
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3">
+            {/* Watermark toggle */}
+            <button
+              onClick={() => setWatermarkEnabled(!watermarkEnabled)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                watermarkEnabled ? 'bg-teal-900/60 border-teal-500 text-teal-200' : 'bg-slate-700 border-slate-600 text-slate-300'
+              }`}
+            >
+              <Shield className="size-3.5" />
+              <span className="hidden sm:inline">العلامة المائية:</span>
+              <span>{watermarkEnabled ? 'مفعلة' : 'معطلة'}</span>
+            </button>
+
             {/* Device Switcher */}
             <div className="flex bg-slate-700/80 p-0.5 rounded-lg border border-slate-600 text-xs">
               <button
                 onClick={() => setDeviceView('desktop')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all cursor-pointer ${
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-md transition-all cursor-pointer ${
                   deviceView === 'desktop' ? 'bg-teal-600 text-white font-bold shadow-xs' : 'text-slate-300 hover:text-white'
                 }`}
               >
                 <Monitor className="size-3.5" />
-                <span>شاشة كمبيوتر</span>
+                <span className="hidden sm:inline">كمبيوتر</span>
               </button>
               <button
                 onClick={() => setDeviceView('mobile')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all cursor-pointer ${
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-md transition-all cursor-pointer ${
                   deviceView === 'mobile' ? 'bg-teal-600 text-white font-bold shadow-xs' : 'text-slate-300 hover:text-white'
                 }`}
               >
                 <Smartphone className="size-3.5" />
-                <span>هاتف جوال (Mobile View)</span>
+                <span>جوال</span>
               </button>
             </div>
 
+            {/* QR Code Trigger */}
+            <button
+              onClick={() => setShowQrModal(!showQrModal)}
+              className="p-1.5 bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-200 hover:text-white rounded-lg cursor-pointer"
+              title="عرض باركود الجوال"
+            >
+              <QrCode className="size-4" />
+            </button>
+
+            {/* Copy Link */}
             <button
               onClick={handleCopyLink}
               className="flex items-center gap-1 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-200 hover:text-white rounded-lg text-xs font-medium cursor-pointer"
             >
-              {copiedLink ? <Check className="size-3.5 text-emerald-400" /> : <Share2 className="size-3.5" />}
-              <span>{copiedLink ? 'تم نسخ الرابط' : 'مشاركة الرابط'}</span>
+              {copiedLink ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
+              <span className="hidden md:inline">{copiedLink ? 'تم النسخ' : 'نسخ الرابط'}</span>
             </button>
 
             <button 
@@ -142,18 +192,33 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
         </div>
 
         {/* Viewport Frame */}
-        <div className="flex-1 bg-slate-950 p-3 md:p-6 overflow-y-auto flex items-center justify-center">
+        <div className="flex-1 bg-slate-950 p-2 md:p-6 overflow-y-auto flex items-center justify-center relative">
+          {/* Simulated Mobile QR Modal overlay */}
+          {showQrModal && (
+            <div className="absolute z-40 bg-slate-900 border border-slate-700 p-5 rounded-2xl shadow-2xl text-center space-y-3 max-w-xs animate-in zoom-in-95">
+              <div className="flex justify-between items-center text-xs font-bold text-slate-200">
+                <span>مسح الرابط بكاميرا الجوال</span>
+                <button onClick={() => setShowQrModal(false)}><X className="size-4 text-slate-400" /></button>
+              </div>
+              <div className="bg-white p-3 rounded-xl mx-auto inline-block shadow-inner">
+                <QrCode className="size-40 text-slate-900" />
+              </div>
+              <p className="text-[11px] text-slate-400 leading-normal">
+                افتح كاميرا الهاتف لمسح الرمز والانتقال المباشر لصفحة العميل
+              </p>
+            </div>
+          )}
+
           <div 
             className={`transition-all duration-300 bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200 flex flex-col ${
               deviceView === 'desktop' 
                 ? 'w-full max-w-4xl min-h-[620px]' 
-                : 'w-[380px] h-[680px] rounded-[40px] border-[8px] border-slate-800 shadow-[0_0_50px_rgba(0,0,0,0.8)]'
+                : 'w-[380px] h-[700px] rounded-[44px] border-[10px] border-slate-800 shadow-[0_0_60px_rgba(0,0,0,0.85)]'
             }`}
           >
             {/* Header: Detail's Royal Navy & Emerald Branding */}
             <div className="bg-gradient-to-r from-slate-900 via-teal-950 to-slate-900 text-white p-5 border-b-4 border-teal-600 relative overflow-hidden">
-              {/* Subtle background geometry */}
-              <div className="absolute left-0 top-0 w-32 h-32 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
+              <div className="absolute left-0 top-0 w-36 h-36 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
 
               <div className="flex items-center justify-between flex-wrap gap-4 relative z-10">
                 <div className="flex items-center gap-3.5">
@@ -205,7 +270,7 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
             </div>
 
             {/* Landing Body Content */}
-            <div className="p-5 md:p-6 flex-1 overflow-y-auto space-y-5 bg-slate-50/60 text-xs">
+            <div className="p-4 md:p-6 flex-1 overflow-y-auto space-y-4 md:space-y-5 bg-slate-50/70 text-xs">
               {/* Target Entity Card */}
               <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex items-start justify-between gap-3">
                 <div className="space-y-1">
@@ -230,35 +295,39 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
               {/* MODE 1: FILE DOWNLOAD LANDING */}
               {type === 'file_download' && (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
                     <h3 className="font-bold text-slate-900 text-xs flex items-center gap-2">
                       <FileCheck2 className="size-4 text-teal-700" />
-                      المستندات الهندسية المتاحة للتنزيل الفوري ({data.files?.length || 3})
+                      المستندات الهندسية المتاحة للتنزيل الفوري ({filesList.length})
                     </h3>
-                    <div className="flex items-center gap-2 text-[11px] text-slate-500 font-mono">
-                      <span>حد التنزيل: {data.maxDownloads || 5}</span>
-                      <span>·</span>
-                      <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleDownloadAllZip}
+                        disabled={downloadAllProgress}
+                        className="flex items-center gap-1.5 px-3 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-xs disabled:bg-slate-400"
+                      >
+                        <Archive className={`size-3.5 ${downloadAllProgress ? 'animate-spin' : ''}`} />
+                        <span>{downloadAllProgress ? 'جارٍ تجميع الحزمة...' : 'تنزيل الكل في ملف ZIP'}</span>
+                      </button>
+                      
+                      <span className="text-[11px] text-emerald-800 font-bold bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-200 font-mono">
                         متبقي {data.remainingDownloads || 4} تنزيلات
                       </span>
                     </div>
                   </div>
 
                   <div className="space-y-2.5">
-                    {(data.files || [
-                      { name: 'مخطط_السلامة_والدفاع_المدني_المعتمد.dwg', size: '14.2 MB', pages: 1, verified: true },
-                      { name: 'تقرير_الجسات_واختبار_التربة_الإنشائي.pdf', size: '4.8 MB', pages: 8, verified: true },
-                      { name: 'خطاب_الإحالة_والتوجيه_الرسمي_للبلدية.pdf', size: '820 KB', pages: 2, verified: true }
-                    ]).map((f, i) => (
+                    {filesList.map((f, i) => (
                       <div 
                         key={i}
                         className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between hover:border-teal-500 transition-all group"
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <div className={`size-10 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
-                            f.name.endsWith('.dwg') ? 'bg-amber-100 text-amber-800' : 'bg-teal-50 text-teal-700'
+                            f.type === 'cad' ? 'bg-amber-100 text-amber-800' : f.type === 'doc' ? 'bg-blue-100 text-blue-800' : 'bg-teal-50 text-teal-700'
                           }`}>
-                            {f.name.endsWith('.dwg') ? 'CAD' : 'PDF'}
+                            {f.type === 'cad' ? 'CAD' : f.type === 'doc' ? 'XLS' : 'PDF'}
                           </div>
                           <div className="min-w-0">
                             <div className="font-bold text-slate-900 text-xs truncate" title={f.name}>
@@ -278,13 +347,13 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
 
                         <div className="flex items-center gap-2 shrink-0">
                           <button 
-                            onClick={() => setActivePreviewDoc(f.name)}
-                            className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg cursor-pointer"
-                            title="معاينة سريعة"
+                            onClick={() => setActivePreviewDoc({ name: f.name, type: f.type || 'pdf' })}
+                            className="flex items-center gap-1 px-2.5 py-1.5 text-slate-600 hover:text-teal-800 hover:bg-teal-50 border border-slate-200 rounded-lg cursor-pointer text-[11px] font-medium"
                           >
-                            <Eye className="size-4" />
+                            <Eye className="size-3.5 text-teal-600" />
+                            <span>معاينة</span>
                           </button>
-                          <button className="flex items-center gap-1.5 px-3.5 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-bold text-xs shadow-xs cursor-pointer">
+                          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-bold text-xs shadow-xs cursor-pointer">
                             <Download className="size-3.5" />
                             <span>تنزيل</span>
                           </button>
@@ -299,14 +368,23 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-xs font-bold text-teal-300">
                           <Eye className="size-4" />
-                          <span>معاينة حية للوثيقة: {activePreviewDoc}</span>
+                          <span>معاينة حية للمستند: {activePreviewDoc.name}</span>
                         </div>
                         <button onClick={() => setActivePreviewDoc(null)} className="text-slate-400 hover:text-white">
                           <X className="size-4" />
                         </button>
                       </div>
-                      <div className="h-44 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-center text-slate-400 text-xs">
-                        [معاينة A4 تفاعلية مع علامة مائية باسم {data.targetEntity}]
+                      <div className="h-48 bg-slate-950 rounded-lg border border-slate-800 flex flex-col items-center justify-center text-slate-400 text-xs relative overflow-hidden p-4 text-center">
+                        {watermarkEnabled && (
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none opacity-10 rotate-[-25deg] text-3xl font-black text-white">
+                            {data.targetEntity} · {data.transactionRef}
+                          </div>
+                        )}
+                        <FileText className="size-10 text-teal-500 mb-2 opacity-80" />
+                        <span className="font-semibold text-slate-300">مستند رسمي معتمد من شركة ديتيلز للاستشارات الهندسية</span>
+                        <span className="text-[11px] text-slate-500 mt-1 font-mono">
+                          SHA-256 Verified · تم فحص التوقيع الرقمي للنسخة
+                        </span>
                       </div>
                     </div>
                   )}
@@ -371,6 +449,7 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
                               </div>
                             ) : uploadState ? (
                               <div className="flex items-center gap-2 text-teal-700 text-xs font-mono">
+                                <RefreshCw className="size-3.5 animate-spin" />
                                 <span>جارٍ الرفع {uploadState.progress}%...</span>
                               </div>
                             ) : (
@@ -418,18 +497,28 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
         </div>
 
         {/* Modal Bottom Actions */}
-        <div className="p-3.5 bg-slate-800/90 border-t border-slate-700 flex items-center justify-between text-xs text-slate-300">
+        <div className="p-3.5 bg-slate-800/95 border-t border-slate-700 flex flex-wrap items-center justify-between text-xs text-slate-300 gap-3 shrink-0">
           <div className="flex items-center gap-2">
-            <Sparkles className="size-4 text-amber-400" />
-            <span>يمكن للعميل فتح هذا الرابط من الجوال أو الكمبيوتر، ورفع الملفات دون حاجة لتسجيل حساب أو كلمة مرور.</span>
+            <Sparkles className="size-4 text-amber-400 shrink-0" />
+            <span>
+              يمكن للعميل فتح هذا الرابط المباشر من أي متصفح، وتنزيل أو رفع الوثائق دون الحاجة لكلمات مرور أو تسجيل دخول.
+            </span>
           </div>
 
-          <button
-            onClick={onClose}
-            className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg shadow-sm cursor-pointer"
-          >
-            إغلاق المعاينة
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCopyLink}
+              className="px-3.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-white font-medium rounded-lg cursor-pointer"
+            >
+              نسخ الرابط
+            </button>
+            <button
+              onClick={onClose}
+              className="px-5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg shadow-sm cursor-pointer"
+            >
+              إغلاق المعاينة
+            </button>
+          </div>
         </div>
       </div>
     </div>
