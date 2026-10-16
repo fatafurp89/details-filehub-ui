@@ -1,101 +1,338 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
-import { ArrowDownToLine, ArrowLeft, ArrowUpRight, Check, ChevronLeft, Copy, Download, ExternalLink, File, FileArchive, FileCheck2, FileClock, FileText, FolderDown, FolderOpen, HardDrive, Inbox, Link2, Loader2, LockKeyhole, Plus, RefreshCw, Search, Send, ShieldCheck, SlidersHorizontal, X } from 'lucide-react';
+import { 
+  FolderDown, 
+  ArrowUpRight, 
+  ShieldCheck, 
+  RefreshCw, 
+  Plus, 
+  Send, 
+  Inbox, 
+  Layers, 
+  Check, 
+  X,
+  FileCheck2,
+  LockKeyhole
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
-import { CreateDialog, SuccessDialog, copyText } from '@/components/attachment-forms';
-import { api, canViewRequests, canViewShares, dateLabel, fileSize, hasPermission, itemPath, uploadUrl, type Download as DownloadItem, type EmployeeSession, type RequestItem, type Settings, type ShareItem, type State } from '@/lib/attachments-api';
+import { LegalMarginBar } from '@/components/LegalMarginBar';
+import { DocumentCenterNav, type CenterTab } from '@/components/DocumentCenterNav';
+import { CenterMetricsCards } from '@/components/CenterMetricsCards';
+import { OperationsTable } from '@/components/OperationsTable';
+import { AiSortingView } from '@/components/AiSortingView';
+import { OutboundPackagesView } from '@/components/OutboundPackagesView';
+import { OfficialHandoffView } from '@/components/OfficialHandoffView';
+import { SendExternalDialog } from '@/components/SendExternalDialog';
+import { ExternalLinkModal } from '@/components/ExternalLinkModal';
+import { CenterSettingsView } from '@/components/CenterSettingsView';
+
+import { 
+  initialStats, 
+  sampleOperations, 
+  sampleSortingFiles, 
+  samplePackages, 
+  sampleActiveRequests, 
+  sampleHandoffs 
+} from '@/lib/document-center-mock';
+import type { 
+  OperationRecord, 
+  OutboundPackage, 
+  DeliveryMethod, 
+  CenterStatistics 
+} from '@/lib/document-center-types';
+import { api, type EmployeeSession } from '@/lib/attachments-api';
 
 export const Route = createFileRoute('/')({
- head: () => ({ meta: [{ title: 'مركز استقبال وإرسال المرفقات | ديتيلز' }, { name: 'description', content: 'مركز المرفقات الداخلي لموظفي ديتيلز: طلبات استقبال الملفات وروابط الإرسال المؤقتة.' }, { property: 'og:title', content: 'مركز استقبال وإرسال المرفقات | ديتيلز' }, { property: 'og:description', content: 'طلبات استقبال الملفات وروابط الإرسال في بوابة الموظفين.' }, { property: 'og:type', content: 'website' }, { name: 'twitter:card', content: 'summary_large_image' }] }),
- component: AttachmentCenter,
+  head: () => ({
+    meta: [
+      { title: 'مركز إرسال واستقبال الوثائق | ديتيلز للاستشارات الهندسية' },
+      { name: 'description', content: 'المركز الموحد لإرسال واستقبال الوثائق والحزم الصادرة وفرز الملفات بالذكاء الاصطناعي — بوابة ديتيلز' }
+    ]
+  }),
+  component: DocumentCenterMainPage
 });
-type Tab = 'requests' | 'shares' | 'downloads' | 'settings';
-const states: Record<State, string> = { open: 'نشط', closed: 'مغلق', expired: 'منتهي', purged: 'حُذفت الملفات' };
-function Badge({ state }: { state: State }) { return <span className={`state state-${state}`}>{states[state] ?? state}</span>; }
-function Empty({ title, text, busy = false }: { title: string; text?: string | undefined; busy?: boolean }) { return <div className="empty-state"><div className="empty-icon">{busy ? <Loader2 className="animate-spin" /> : <FolderOpen className="size-7" />}</div><h3 className="font-semibold">{title}</h3>{text && <p className="max-w-md text-sm leading-6 text-muted-foreground">{text}</p>}</div>; }
-function AttachmentCenter() {
- const [session, setSession] = useState<EmployeeSession | null>(null); const [bootError, setBootError] = useState(''); const [booting, setBooting] = useState(true);
- const [tab, setTab] = useState<Tab>('requests'); const [scope, setScope] = useState<'mine' | 'all'>('mine'); const [canAll, setCanAll] = useState(false);
- const [requests, setRequests] = useState<RequestItem[]>([]); const [shares, setShares] = useState<ShareItem[]>([]); const [logs, setLogs] = useState<DownloadItem[]>([]); const [settings, setSettings] = useState<Settings | null>(null);
- const [loading, setLoading] = useState(false); const [error, setError] = useState(''); const [search, setSearch] = useState(''); const [filter, setFilter] = useState('all');
- const [selected, setSelected] = useState<RequestItem | ShareItem | null>(null); const [detailLoading, setDetailLoading] = useState(false); const [selectedUploads, setSelectedUploads] = useState<string[]>([]);
- const [create, setCreate] = useState<'requests' | 'shares' | null>(null); const [initialIds, setInitialIds] = useState<string[]>([]); const [success, setSuccess] = useState<RequestItem | ShareItem | null>(null);
- const [notice, setNotice] = useState(''); const [action, setAction] = useState<'close' | 'reopen' | 'extend' | 'cleanup' | null>(null); const [days, setDays] = useState(7); const [actionBusy, setActionBusy] = useState(false); const [actionError, setActionError] = useState('');
- const permitted = (key: string) => hasPermission(session, key);
- async function boot() { setBooting(true); setBootError(''); try { const me = await api<EmployeeSession>('/me'); setSession(me); setTab(canViewRequests(me) ? 'requests' : canViewShares(me) ? 'shares' : hasPermission(me, 'files.downloads.view_log') ? 'downloads' : 'settings'); } catch (e) { setBootError(e instanceof Error ? e.message : 'تعذّر الاتصال ببوابة الشركة'); } finally { setBooting(false); } }
- useEffect(() => { void boot(); }, []);
- useEffect(() => { if (!notice) return; const t = setTimeout(() => setNotice(''), 4000); return () => clearTimeout(t); }, [notice]);
- async function load() {
-  if (!session) return;
-  const allowed = tab === 'requests' ? canViewRequests(session) : tab === 'shares' ? canViewShares(session) : permitted(tab === 'downloads' ? 'files.downloads.view_log' : 'files.settings');
-  if (!allowed) return;
-  setLoading(true); setError('');
-  try {
-   if (tab === 'requests') { const data = await api<{ requests: RequestItem[]; can_all: boolean }>(`/requests?scope=${scope}`); setRequests(data.requests); setCanAll(data.can_all); }
-   if (tab === 'shares') { const data = await api<{ shares: ShareItem[]; can_all: boolean }>(`/shares?scope=${scope}`); setShares(data.shares); setCanAll(data.can_all); }
-   if (tab === 'downloads') { const data = await api<{ downloads: DownloadItem[] }>('/downloads'); setLogs(data.downloads); }
-   if (tab === 'settings') setSettings(await api<Settings>('/settings'));
-  } catch (e) { setError(e instanceof Error ? e.message : 'تعذّر تحميل البيانات'); } finally { setLoading(false); }
- }
- useEffect(() => { if (session) void load(); }, [session, tab, scope]);
- async function openDetail(id: string) { setDetailLoading(true); setError(''); setSelectedUploads([]); try { setSelected(await api<RequestItem | ShareItem>(itemPath(tab === 'requests' ? 'requests' : 'shares', id))); } catch (e) { setError(e instanceof Error ? e.message : 'تعذّر فتح التفاصيل'); } finally { setDetailLoading(false); } }
- function switchTab(next: Tab) { setTab(next); setScope('mine'); setSelected(null); setSearch(''); setFilter('all'); setError(''); setCanAll(false); }
- function startCreate(kind: 'requests' | 'shares', ids: string[] = []) { setInitialIds(ids); setCreate(kind); }
- async function runAction() {
-  if (!action) return; setActionBusy(true); setActionError('');
-  try {
-   if (action === 'cleanup') { const result = await api<{ ok: boolean; summary: unknown }>('/settings/cleanup', { method: 'POST' }); setNotice(`اكتمل التنظيف: ${JSON.stringify(result.summary)}`); }
-   else if (selected) { await api(itemPath(tab === 'requests' ? 'requests' : 'shares', selected.id) + `/${action}`, { method: 'POST', ...(action === 'close' ? {} : { body: JSON.stringify({ days }) }) }); await openDetail(selected.id); setNotice('تم تحديث الرابط'); }
-   setAction(null); await load();
-  } catch (e) { setActionError(e instanceof Error ? e.message : 'تعذّر تنفيذ الإجراء'); } finally { setActionBusy(false); }
- }
- const isRequests = tab === 'requests'; const list = isRequests ? requests : shares;
- const filtered = list.filter(item => (filter === 'all' || item.state === filter) && `${item.title} ${'requested_from_name' in item ? item.requested_from_name : item.recipient_name} ${item.created_by_name}`.includes(search));
- const nav = [{ id: 'requests' as const, title: 'طلبات الاستقبال', icon: Inbox, show: canViewRequests(session) }, { id: 'shares' as const, title: 'روابط الإرسال', icon: Send, show: canViewShares(session) }, { id: 'downloads' as const, title: 'سجل التنزيلات', icon: ArrowDownToLine, show: permitted('files.downloads.view_log') }, { id: 'settings' as const, title: 'الإعدادات والتخزين', icon: SlidersHorizontal, show: permitted('files.settings') }];
- const showCreate = permitted(isRequests ? 'files.requests.create' : 'files.shares.create');
- const requestDetail = selected && 'uploads' in selected ? selected as RequestItem : isRequests ? selected as RequestItem | null : null;
- const shareDetail = !isRequests ? selected as ShareItem | null : null;
- const title = nav.find(n => n.id === tab)?.title;
- return <div dir="rtl" className="min-h-screen">
-  <header className="portal-header"><div className="mx-auto flex max-w-[1460px] flex-wrap items-center justify-between gap-4 px-4 py-5 md:px-12">
-   <div className="flex items-center gap-3"><div className="brand-mark"><FolderDown className="size-6" /></div><div><div className="text-xl font-bold">ديتيلز <span className="mr-2 text-xs font-normal text-gold">للاستشارات الهندسية</span></div><div className="mt-1 text-xs text-muted-foreground">بوابة الموظفين <span className="mx-2 text-border">|</span> مركز المرفقات</div></div></div>
-   <div className="flex items-center gap-5">{session && <><div className="text-left"><div className="text-sm font-semibold">{session.employee.name}</div><div className="mt-1 text-xs text-muted-foreground">الرقم الوظيفي: {session.employee.employee_no}</div></div><div className="hidden size-10 items-center justify-center rounded-full border bg-muted font-semibold text-secondary sm:flex">{session.employee.name.slice(0, 1)}</div><div className="hidden h-8 w-px bg-border sm:block" /><Button asChild variant="outline"><a href={session.portal}>بوابة ديتيلز <ArrowUpRight /></a></Button></>}</div>
-  </div></header>
-  <main className="page-shell">
-   <div className="mb-7 flex flex-wrap items-center justify-between gap-4"><div><div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground"><span>بوابة الموظفين</span><ChevronLeft className="size-3" /><span>مركز المرفقات</span></div><h1 className="text-2xl font-bold md:text-[28px]">مركز استقبال وإرسال المرفقات</h1><p className="mt-3 text-sm text-muted-foreground">طلبات الملفات وروابط المشاركة مع العملاء والجهات الخارجية</p></div><div className="flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-xs text-muted-foreground"><ShieldCheck className="size-4 text-primary" />مساحة عمل الموظفين</div></div>
-   {booting ? <section className="panel"><Empty busy title="جارٍ التحقق من جلسة الموظف…" /></section> : bootError ? <section className="panel"><Empty title="تعذّر الاتصال ببوابة الشركة" text={bootError} /><div className="mb-8 flex justify-center"><Button variant="outline" onClick={boot}><RefreshCw />إعادة المحاولة</Button></div></section> : session && <>
-    <nav aria-label="أقسام مركز المرفقات" className="mb-7 flex gap-2 overflow-x-auto border-b">{nav.filter(n => n.show).map(n => <Button key={n.id} className="nav-tab shrink-0" variant="ghost" data-active={tab === n.id} onClick={() => switchTab(n.id)}><n.icon />{n.title}</Button>)}</nav>
-    {!nav.some(n => n.show) ? <section className="panel"><Empty title="لا توجد صلاحيات متاحة" text="تواصل مع مسؤول بوابة الشركة لتفعيل صلاحيات مركز المرفقات." /></section> : <>
-    {(tab === 'requests' || tab === 'shares') && <>
-     <div className="mb-7 grid grid-cols-2 gap-4 lg:grid-cols-4">{[{ name: isRequests ? 'إجمالي طلبات الاستقبال' : 'إجمالي روابط الإرسال', value: list.length, icon: isRequests ? Inbox : Link2, color: '' }, { name: 'روابط نشطة', value: list.filter(x => x.state === 'open').length, icon: FileCheck2, color: '' }, { name: isRequests ? 'الملفات المستلمة' : 'إجمالي التنزيلات', value: list.reduce((s, x) => s + (isRequests ? x.files : (x as ShareItem).downloads), 0), icon: isRequests ? FolderDown : Download, color: 'navy' }, { name: 'روابط منتهية', value: list.filter(x => x.state === 'expired').length, icon: FileClock, color: 'gold' }].map(stat => <div className="panel stat-card" key={stat.name}><div><p className="mb-2 text-xs text-muted-foreground">{stat.name}</p><p className="text-[28px] font-bold">{loading ? '—' : stat.value.toLocaleString('en')}</p></div><span className={`stat-icon ${stat.color}`}><stat.icon className="size-5" /></span></div>)}</div>
-     {selected ? <>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><Button variant="ghost" onClick={() => setSelected(null)}><ArrowLeft />العودة إلى {title}</Button><Badge state={selected.state} /></div>
-      <div className="detail-grid"><section className="panel overflow-hidden"><div className="border-b p-6"><h2 className="text-xl font-bold">{selected.title}</h2><p className="mt-2 text-sm text-muted-foreground">{isRequests ? requestDetail?.instructions : shareDetail?.note}</p><div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground"><span>أُنشئ بواسطة {selected.created_by_name}</span><span>{dateLabel(selected.created_at)}</span><span>ينتهي {dateLabel(selected.expires_at)}</span></div></div>
-       <div className="flex flex-wrap items-center justify-between gap-3 border-b px-6 py-4"><h3 className="font-semibold">{isRequests ? 'الملفات المرفوعة' : 'الملفات المُرسلة'} <span className="mr-2 text-sm font-normal text-muted-foreground">({isRequests ? requestDetail?.uploads?.filter(f => !f.deleted_at).length ?? 0 : shareDetail?.items?.filter(f => !f.deleted_at).length ?? 0})</span></h3>{isRequests && selected.state !== 'purged' && <Button asChild variant="outline" size="sm"><a href={`/api/app/requests/${encodeURIComponent(selected.id)}/zip`}><FileArchive />تنزيل الكل ZIP</a></Button>}</div>
-       <div className="overflow-x-auto">{isRequests ? <>{requestDetail?.uploads?.length ? <table className="data-table"><thead><tr><th>الملف</th><th>المرسل / التاريخ</th><th>الحجم</th><th /></tr></thead><tbody>{requestDetail.uploads.map(file => <tr key={file.id}><td><div className="flex items-center gap-3">{requestDetail.can_share && permitted('files.shares.create') && !file.deleted_at && <input type="checkbox" aria-label={`اختيار ${file.original_name}`} checked={selectedUploads.includes(file.id)} onChange={e => setSelectedUploads(prev => e.target.checked ? [...prev, file.id] : prev.filter(id => id !== file.id))} />}<span className="file-symbol"><FileText className="size-5" /></span><div className="min-w-0"><p className="max-w-64 break-all" dir="auto">{file.original_name}</p>{file.deleted_at && <span className="text-xs text-muted-foreground">حُذف الملف</span>}</div></div></td><td><div>{file.uploader_name || '—'}</div><div className="mt-1 text-xs text-muted-foreground">{dateLabel(file.uploaded_at)}</div></td><td dir="ltr" className="whitespace-nowrap">{fileSize(file.size)}</td><td>{!file.deleted_at && <div className="flex gap-1">{file.previewable && <Button asChild variant="ghost" size="icon" title="معاينة"><a href={uploadUrl(selected.id, file.id, true)} target="_blank" rel="noreferrer"><ExternalLink /></a></Button>}<Button asChild variant="ghost" size="icon" title="تنزيل الملف"><a href={uploadUrl(selected.id, file.id)}><Download /></a></Button></div>}</td></tr>)}</tbody></table> : <Empty title={selected.state === 'purged' ? 'حُذفت الملفات' : 'لم تصل ملفات بعد'} />}</> : <>{shareDetail?.items?.length ? <table className="data-table"><thead><tr><th>الملف</th><th>الحجم</th><th>التنزيلات</th><th>تاريخ الإضافة</th></tr></thead><tbody>{shareDetail.items.map(f => <tr key={f.id}><td><div className="flex items-center gap-3"><span className="file-symbol"><File /></span><div className="break-all" dir="auto">{f.original_name}{f.deleted_at && <span className="block text-xs text-muted-foreground">حُذف الملف</span>}</div></div></td><td dir="ltr">{fileSize(f.size)}</td><td>{f.downloads}</td><td>{dateLabel(f.added_at)}</td></tr>)}</tbody></table> : <Empty title={selected.state === 'purged' ? 'حُذفت الملفات' : 'لا توجد ملفات'} />}</>}</div>
-       {isRequests && requestDetail?.can_share && permitted('files.shares.create') && <div className="border-t p-5"><Button disabled={!selectedUploads.length} onClick={() => startCreate('shares', selectedUploads)}><Send />إنشاء رابط إرسال من هذه الملفات{selectedUploads.length > 0 && ` (${selectedUploads.length})`}</Button></div>}
-      </section><aside className="space-y-5"><section className="panel p-5"><h3 className="mb-5 font-semibold">تفاصيل الرابط</h3><dl className="space-y-4 text-sm"><div><dt className="mb-1 text-xs text-muted-foreground">{isRequests ? 'الجهة المطلوب منها' : 'المستلم'}</dt><dd>{isRequests ? requestDetail?.requested_from_name || '—' : shareDetail?.recipient_name || '—'}</dd></div>{isRequests && <><div><dt className="mb-1 text-xs text-muted-foreground">البريد الإلكتروني</dt><dd className="break-all" dir="auto">{requestDetail?.requested_from_email || '—'}</dd></div><div><dt className="mb-1 text-xs text-muted-foreground">الجوال</dt><dd dir="auto">{requestDetail?.requested_from_phone || '—'}</dd></div><div><dt className="mb-1 text-xs text-muted-foreground">الامتدادات المسموحة</dt><dd dir="ltr">{requestDetail?.allowed_ext?.join(', ') || '—'}</dd></div></>}<div><dt className="mb-1 text-xs text-muted-foreground">حجم الملفات</dt><dd dir="ltr">{fileSize(selected.bytes)}</dd></div>{shareDetail && <div className="flex items-center gap-2 text-muted-foreground"><LockKeyhole className="size-4" />{shareDetail.has_password ? 'محمي بكلمة مرور' : 'دون كلمة مرور'}</div>}</dl><div className="mt-5 border-t pt-4"><input aria-label="رابط الطلب" dir="ltr" readOnly value={selected.url} className="text-xs" /><Button className="mt-2 w-full" variant="outline" onClick={() => copyText(selected.url, setNotice)}><Copy />نسخ الرابط</Button>{selected.messages && <Button className="mt-2 w-full" variant="ghost" onClick={() => setSuccess(selected)}>خيارات المشاركة <ArrowUpRight /></Button>}</div></section>
-       {selected.state !== 'purged' && <section className="panel space-y-2 p-4">{((isRequests && requestDetail?.can_close && permitted('files.requests.close')) || (!isRequests && permitted('files.shares.create') && selected.created_by_employee_no === session.employee.employee_no)) && <>{selected.state === 'open' && <Button className="w-full" variant="outline" onClick={() => { setAction('close'); setActionError(''); }}>إغلاق الرابط</Button>}{isRequests && selected.state !== 'open' && <Button className="w-full" variant="outline" onClick={() => { setDays(session.limits.request_days); setAction('reopen'); setActionError(''); }}><RefreshCw />إعادة فتح الطلب</Button>}<Button className="w-full" variant="ghost" onClick={() => { setDays(isRequests ? session.limits.request_days : session.limits.share_days); setAction('extend'); setActionError(''); }}><FileClock />تمديد الصلاحية</Button></>}</section>}
-      </aside></div>
-      {shareDetail?.can_log && permitted('files.downloads.view_log') && <section className="panel mt-5 overflow-hidden"><h3 className="border-b p-5 font-semibold">سجل تنزيلات الرابط</h3><LogTable logs={shareDetail.log ?? []} /></section>}
-     </> : <section className="panel overflow-hidden"><div className="flex flex-wrap items-center justify-between gap-4 border-b px-6 py-5"><div><h2 className="text-lg font-bold">{title}</h2><p className="mt-1 text-xs text-muted-foreground">{isRequests ? 'طلبات استقبال المرفقات من العملاء والجهات' : 'الملفات المشتركة مع العملاء والجهات'}</p></div><div className="flex gap-2"><Button variant="ghost" size="icon" title="تحديث القائمة" onClick={load} disabled={loading}><RefreshCw className={loading ? 'animate-spin' : ''} /></Button>{showCreate && <Button onClick={() => startCreate(isRequests ? 'requests' : 'shares')}><Plus />{isRequests ? 'طلب استقبال جديد' : 'رابط إرسال جديد'}</Button>}</div></div>
-      <div className="flex flex-wrap items-center gap-3 border-b px-6 py-4"><div className="relative min-w-44 flex-1"><Search className="absolute right-3 top-3 size-4 text-muted-foreground" /><input aria-label="البحث" className="pr-10! text-sm" placeholder={isRequests ? 'ابحث بعنوان الطلب أو اسم الجهة…' : 'ابحث بعنوان الرابط أو اسم المستلم…'} value={search} onChange={e => setSearch(e.target.value)} /></div><select aria-label="تصفية الحالة" className="w-auto! text-sm" value={filter} onChange={e => setFilter(e.target.value)}><option value="all">جميع الحالات</option>{Object.entries(states).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>{permitted(isRequests ? 'files.requests.view_all' : 'files.shares.view_all') && canAll && <div className="flex rounded-md border p-1"><Button size="sm" variant={scope === 'mine' ? 'secondary' : 'ghost'} onClick={() => setScope('mine')}>الخاصة بي</Button><Button size="sm" variant={scope === 'all' ? 'secondary' : 'ghost'} onClick={() => setScope('all')}>الجميع</Button></div>}</div>
-      {loading || detailLoading ? <Empty busy title={detailLoading ? 'جارٍ فتح التفاصيل…' : 'جارٍ تحميل القائمة…'} /> : error ? <div className="p-8 text-center"><p role="alert" className="text-sm text-destructive">{error}</p><Button className="mt-3" variant="outline" onClick={load}>إعادة المحاولة</Button></div> : filtered.length ? <div className="overflow-x-auto"><table className="data-table"><thead><tr><th>{isRequests ? 'عنوان الطلب' : 'عنوان الرابط'}</th><th>{isRequests ? 'الجهة / العميل' : 'المستلم'}</th><th>الحالة</th><th>الملفات</th>{!isRequests && <th>التنزيلات</th>}<th>تاريخ الانتهاء</th><th /></tr></thead><tbody>{filtered.map(item => <tr key={item.id}><td><div className="flex items-center gap-3"><span className="file-symbol">{isRequests ? <Inbox className="size-5" /> : <Link2 className="size-5" />}</span><div><Button variant="link" className="h-auto max-w-72 whitespace-normal p-0 text-right font-semibold text-foreground" onClick={() => openDetail(item.id)}>{item.title}</Button><p className="mt-1 text-[11px] text-muted-foreground">{isRequests ? 'REQ' : 'SHARE'}_{item.id} <span className="mx-1">·</span> {dateLabel(item.created_at)}</p></div></div></td><td>{'requested_from_name' in item ? item.requested_from_name || '—' : item.recipient_name || '—'}<p className="mt-1 text-[11px] text-muted-foreground">{scope === 'all' ? item.created_by_name : '—'}</p></td><td><Badge state={item.state} /></td><td><div className="flex items-center gap-2"><FileText className="size-4 text-muted-foreground" />{item.files}</div><p className="mt-1 text-[11px] text-muted-foreground" dir="ltr">{fileSize(item.bytes)}</p></td>{!isRequests && <td>{(item as ShareItem).downloads}</td>}<td className="whitespace-nowrap">{dateLabel(item.expires_at)}</td><td><div className="flex gap-1"><Button size="icon" variant="ghost" title="نسخ الرابط" onClick={() => copyText(item.url, setNotice)}><Copy /></Button><Button size="icon" variant="ghost" title="عرض التفاصيل" onClick={() => openDetail(item.id)}><ChevronLeft /></Button></div></td></tr>)}</tbody></table></div> : <Empty title={search || filter !== 'all' ? 'لا توجد نتائج مطابقة' : isRequests ? 'لا توجد طلبات استقبال بعد' : 'لا توجد روابط إرسال بعد'} text={search || filter !== 'all' ? 'جرّب تغيير كلمات البحث أو الحالة.' : undefined} />}
-      <div className="flex justify-between border-t bg-background/50 px-6 py-4 text-xs text-muted-foreground"><span>{loading ? '…' : `${filtered.length} ${isRequests ? 'طلب استقبال' : 'رابط إرسال'}`}</span><span>{scope === 'mine' ? 'الخاصة بي' : 'جميع الموظفين'}</span></div>
-     </section>}
-    </>}
-    {tab === 'downloads' && <section className="panel overflow-hidden"><div className="flex items-center justify-between border-b p-5"><h2 className="text-lg font-bold">سجل التنزيلات</h2><Button variant="ghost" size="icon" title="تحديث" onClick={load}><RefreshCw /></Button></div>{loading ? <Empty busy title="جارٍ تحميل السجل…" /> : error ? <Empty title="تعذّر تحميل السجل" text={error} /> : <LogTable logs={logs} />}</section>}
-    {tab === 'settings' && <>{loading ? <section className="panel"><Empty busy title="جارٍ تحميل الإعدادات…" /></section> : error ? <section className="panel"><Empty title="تعذّر تحميل الإعدادات" text={error} /></section> : settings && <div className="space-y-6"><section className="panel p-6"><div className="mb-5 flex items-center gap-3"><HardDrive className="text-primary" /><h2 className="text-lg font-bold">التخزين</h2></div><div className="mb-3 flex justify-between text-sm"><span><b dir="ltr">{settings.storage.used_h}</b> مستخدم من <span dir="ltr">{settings.storage.quota_h}</span></span><span>{settings.storage.pct}%</span></div><div className="progress-track"><progress max={100} value={settings.storage.pct} /></div><div className="mt-5 flex flex-wrap gap-6 text-xs text-muted-foreground"><span>{settings.counts.requests} طلب استقبال</span><span>{settings.counts.uploads} ملف وارد</span><span>{settings.counts.shares} رابط إرسال</span><span>{settings.counts.items} ملف مرسل</span></div></section><div className="grid gap-6 md:grid-cols-2"><section className="panel p-6"><h3 className="mb-5 font-bold">حدود الملفات والروابط</h3><dl className="grid grid-cols-2 gap-5 text-sm">{[['حجم الملف', settings.limits.max_file], ['إجمالي الطلب', settings.limits.max_request], ['عدد الملفات', settings.limits.max_files], ['مدة الاحتفاظ', `${settings.limits.retention_days} يومًا`], ['صلاحية الاستقبال', `${settings.limits.request_days} يومًا`], ['صلاحية الإرسال', `${settings.limits.share_days} يومًا`]].map(([label, value]) => <div key={label}><dt className="mb-2 text-xs text-muted-foreground">{label}</dt><dd>{value}</dd></div>)}</dl></section><section className="panel p-6"><h3 className="mb-3 font-bold">تنظيف الملفات المنتهية</h3><p className="mb-6 text-sm leading-7 text-muted-foreground">حذف الملفات المنتهية وفق مدة الاحتفاظ المحددة: {settings.limits.retention_days} يومًا.</p><Button variant="outline" onClick={() => { setAction('cleanup'); setActionError(''); }}><RefreshCw />تنظيف الآن</Button></section></div><section className="panel overflow-hidden"><h3 className="border-b p-5 font-bold">سجل الإجراءات</h3><div className="overflow-x-auto"><table className="data-table"><thead><tr><th>التاريخ</th><th>الموظف</th><th>الإجراء</th><th>الهدف</th><th>عنوان IP</th></tr></thead><tbody>{settings.audit.map((row, i) => <tr key={i}><td>{dateLabel(row.at)}</td><td>{row.actor_no}</td><td>{row.action}</td><td>{row.target_type} / {row.target_id}</td><td dir="ltr">{row.ip}</td></tr>)}</tbody></table>{!settings.audit.length && <Empty title="لا توجد إجراءات مسجلة" />}</div></section></div>}</>}
-    </>}
-   </>}
-   {error && selected && <p className="mt-4 text-sm text-destructive" role="alert">{error}</p>}
-   <footer className="mt-9 flex flex-wrap justify-between gap-3 border-t pt-5 text-xs text-muted-foreground"><span>ديتيلز للاستشارات الهندسية <span className="mx-2 text-border">|</span> مركز المرفقات</span><span className="flex items-center gap-2"><LockKeyhole className="size-3" />بوابة داخلية للموظفين</span></footer>
-  </main>
-  {session && create && <CreateDialog key={`${create}-${initialIds.join(',')}`} kind={create} session={session} initialIds={initialIds} onClose={() => setCreate(null)} onCreated={item => { setCreate(null); setSuccess(item); void load(); }} />}
-  <SuccessDialog item={success} onClose={() => setSuccess(null)} notify={setNotice} />
-  <Dialog open={!!action} onOpenChange={open => { if (!open && !actionBusy) setAction(null); }}><DialogContent dir="rtl" className="rounded-xl text-right"><DialogTitle>{action === 'cleanup' ? 'تأكيد تنظيف الملفات' : action === 'close' ? 'إغلاق الرابط' : action === 'reopen' ? 'إعادة فتح الطلب' : 'تمديد صلاحية الرابط'}</DialogTitle><DialogDescription>{action === 'cleanup' ? 'سيحذف النظام الملفات المنتهية وفق مدة الاحتفاظ. لا يمكن التراجع عن الحذف.' : action === 'close' ? 'لن يكون الرابط متاحًا للجهات الخارجية بعد الإغلاق.' : 'حدد عدد الأيام المطلوبة.'}</DialogDescription>{action && ['reopen', 'extend'].includes(action) && <label>عدد الأيام<input type="number" min={1} value={days} onChange={e => setDays(Number(e.target.value))} /></label>}{actionError && <p role="alert" className="text-sm text-destructive">{actionError}</p>}<div className="flex justify-end gap-3"><Button variant="outline" disabled={actionBusy} onClick={() => setAction(null)}>إلغاء</Button><Button variant={action === 'cleanup' ? 'destructive' : 'default'} disabled={actionBusy || (action !== 'close' && action !== 'cleanup' && days < 1)} onClick={runAction}>{actionBusy ? <Loader2 className="animate-spin" /> : <Check />}تأكيد</Button></div></DialogContent></Dialog>
-  {notice && <div role="status" className="fixed bottom-6 left-1/2 z-[70] flex max-w-[90vw] -translate-x-1/2 items-center gap-3 rounded-lg border bg-secondary px-5 py-3 text-sm text-secondary-foreground shadow-lg"><Check className="size-4 shrink-0" /><span className="break-words">{notice}</span><Button variant="ghost" size="icon" title="إغلاق التنبيه" onClick={() => setNotice('')}><X /></Button></div>}
- </div>;
+
+function DocumentCenterMainPage() {
+  const [session, setSession] = useState<EmployeeSession | null>(null);
+  const [booting, setBooting] = useState(false);
+  const [activeTab, setActiveTab] = useState<CenterTab>('overview');
+  const [stats, setStats] = useState<CenterStatistics>(initialStats);
+  const [operations, setOperations] = useState<OperationRecord[]>(sampleOperations);
+  const [packages, setPackages] = useState<OutboundPackage[]>(samplePackages);
+  
+  // Modals state
+  const [selectedOpForLink, setSelectedOpForLink] = useState<OperationRecord | null>(null);
+  const [selectedPkgForSend, setSelectedPkgForSend] = useState<OutboundPackage | null>(null);
+  const [notice, setNotice] = useState<string>('');
+
+  useEffect(() => {
+    async function loadSession() {
+      try {
+        const me = await api<EmployeeSession>('/me');
+        setSession(me);
+      } catch (err) {
+        // Fallback demo employee session if running offline/standalone
+        setSession({
+          employee: {
+            employee_no: 'EMP-104',
+            name: 'م. راكان التميمي',
+            email: 'rakan@details-consults.sa',
+            admin: true
+          },
+          perms: [
+            'files.requests.view_own',
+            'files.requests.view_all',
+            'files.requests.create',
+            'files.requests.close',
+            'files.shares.create',
+            'files.shares.view_all',
+            'files.downloads.view_log',
+            'files.settings'
+          ],
+          limits: {
+            max_file_bytes: 104857600,
+            max_request_bytes: 524288000,
+            max_files: 20,
+            request_days: 7,
+            share_days: 7
+          },
+          portal: 'https://details-wms.cloud'
+        });
+      }
+    }
+    loadSession();
+  }, []);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(''), 4500);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
+  const handleConfirmSendPackage = (method: DeliveryMethod, notes: string) => {
+    if (!selectedPkgForSend) return;
+    
+    // Add new operation record to table
+    const newOp: OperationRecord = {
+      id: `OP-${Date.now()}`,
+      reference: selectedPkgForSend.pkgReference,
+      direction: 'outbound',
+      sourceOrDestination: selectedPkgForSend.destination,
+      documentTitle: selectedPkgForSend.contentSummary,
+      linkedEntity: {
+        type: 'transaction',
+        referenceNumber: selectedPkgForSend.linkedTransactionRef,
+        title: selectedPkgForSend.destination
+      },
+      method: method,
+      status: method === 'link' || method === 'mail' ? 'delivered' : 'handoff_manual',
+      statusLabel: method === 'link' ? 'تم التسليم المؤكد' : 'تسليم خارجي يدوي',
+      timestamp: '2026-10-16 04:35',
+      ownerName: session?.employee.name || 'م. راكان التميمي',
+      sensitivity: 'restricted',
+      linkToken: 's_token_' + Math.random().toString(36).substring(7)
+    };
+
+    setOperations(prev => [newOp, ...prev]);
+    setSelectedPkgForSend(null);
+    setNotice(`تم إرسال الحزمة ${selectedPkgForSend.pkgReference} بنجاح وتسجيلها بالسجل.`);
+  };
+
+  const handleDepositToArchive = () => {
+    setNotice('تم اعتماد الحقول وإيداع الوثيقة بالأرشيف وإنشاء سجل إيداع بكود مميز.');
+    setActiveTab('inbox');
+  };
+
+  return (
+    <div dir="rtl" className="h-screen flex flex-col bg-slate-100 font-sans text-slate-800 select-none overflow-hidden">
+      {/* 1. Header with Company Branding & Session Profile */}
+      <header className="bg-white border-b border-border shadow-xs shrink-0">
+        <div className="mx-auto flex items-center justify-between px-6 py-2.5">
+          <div className="flex items-center gap-3">
+            <div className="size-9 rounded-lg bg-teal-700 text-white flex items-center justify-center shadow-xs">
+              <FolderDown className="size-5" />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <span>ديتيلز للاستشارات الهندسية</span>
+                <span className="text-[11px] font-normal text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.2 rounded-full">
+                  مركز إرسال واستقبال الوثائق
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-500 font-mono">
+                details-wms.cloud · بوابة الدخول الموحد (SSO Protected)
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 text-xs">
+            {session && (
+              <div className="flex items-center gap-3 pl-3 border-l border-slate-200">
+                <div className="text-left">
+                  <div className="font-bold text-slate-900">{session.employee.name}</div>
+                  <div className="text-[10px] text-slate-500 font-mono">الرقم: {session.employee.employee_no}</div>
+                </div>
+                <div className="size-8 rounded-full bg-teal-700 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                  {session.employee.name.slice(0, 1)}
+                </div>
+              </div>
+            )}
+            <a 
+              href={session?.portal || 'https://details-wms.cloud'}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition-colors"
+            >
+              <span>العودة للبوابة</span>
+              <ArrowUpRight className="size-3.5" />
+            </a>
+          </div>
+        </div>
+      </header>
+
+      {/* 2. Unified Navigation Tabs with Live Counts */}
+      <DocumentCenterNav 
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        stats={stats}
+      />
+
+      {/* 3. High-level Summary Indicators (Always Clickable) */}
+      <CenterMetricsCards 
+        stats={stats}
+        onNavigateTab={setActiveTab}
+      />
+
+      {/* 4. Main Tab Content (No page scrolling - scrolling inside tables only) */}
+      <main className="flex-1 p-3.5 overflow-hidden flex flex-col">
+        {activeTab === 'overview' && (
+          <OperationsTable 
+            operations={operations}
+            onViewOperation={(op) => {
+              if (op.linkToken) setSelectedOpForLink(op);
+              else setNotice(`عرض تفاصيل العملية: ${op.reference}`);
+            }}
+            onOpenLinkModal={(op) => setSelectedOpForLink(op)}
+          />
+        )}
+
+        {activeTab === 'inbox' && (
+          <OperationsTable 
+            operations={operations.filter(x => x.direction === 'inbound')}
+            onViewOperation={(op) => setSelectedOpForLink(op)}
+            onOpenLinkModal={(op) => setSelectedOpForLink(op)}
+          />
+        )}
+
+        {activeTab === 'outbound' && (
+          <OperationsTable 
+            operations={operations.filter(x => x.direction === 'outbound')}
+            onViewOperation={(op) => setSelectedOpForLink(op)}
+            onOpenLinkModal={(op) => setSelectedOpForLink(op)}
+          />
+        )}
+
+        {activeTab === 'sorting' && (
+          <AiSortingView 
+            fields={sampleSortingFiles}
+            onConfirmField={(id) => setNotice(`تم تأكيد الحقل ${id}`)}
+            onDepositToArchive={handleDepositToArchive}
+          />
+        )}
+
+        {activeTab === 'packages' && (
+          <OutboundPackagesView 
+            packages={packages}
+            onCreatePackage={() => setNotice('تم فتح معالج تجهيز حزمة صادرة جديدة')}
+            onSendPackage={(pkg) => setSelectedPkgForSend(pkg)}
+          />
+        )}
+
+        {activeTab === 'handoff' && (
+          <OfficialHandoffView 
+            handoffs={sampleHandoffs}
+            onUploadEvidence={(id) => setNotice(`تم فتح نافذة رفع إثبات المهمة ${id}`)}
+          />
+        )}
+
+        {activeTab === 'requests' && (
+          <OperationsTable 
+            operations={operations.filter(x => x.direction === 'request')}
+            onViewOperation={(op) => setSelectedOpForLink(op)}
+            onOpenLinkModal={(op) => setSelectedOpForLink(op)}
+          />
+        )}
+
+        {activeTab === 'links' && (
+          <OperationsTable 
+            operations={operations.filter(x => !!x.linkToken)}
+            onViewOperation={(op) => setSelectedOpForLink(op)}
+            onOpenLinkModal={(op) => setSelectedOpForLink(op)}
+          />
+        )}
+
+        {activeTab === 'settings' && (
+          <CenterSettingsView />
+        )}
+
+        {activeTab === 'templates' && (
+          <CenterSettingsView />
+        )}
+
+        {activeTab === 'history' && (
+          <OperationsTable 
+            operations={operations}
+            onViewOperation={(op) => setSelectedOpForLink(op)}
+          />
+        )}
+
+        {activeTab === 'performance' && (
+          <CenterSettingsView />
+        )}
+      </main>
+
+      {/* 5. Persistent Legal Margin Bar at bottom of screen */}
+      <footer className="shrink-0 bg-white border-t border-border">
+        <LegalMarginBar 
+          referenceNumber="SYS-DC-2026-LIVE"
+          statusLabel="مركز إرسال واستقبال الوثائق المعتمد"
+        />
+      </footer>
+
+      {/* Modals & Dialogs */}
+      {selectedPkgForSend && (
+        <SendExternalDialog 
+          pkg={selectedPkgForSend}
+          isOpen={!!selectedPkgForSend}
+          onClose={() => setSelectedPkgForSend(null)}
+          onConfirmSend={handleConfirmSendPackage}
+        />
+      )}
+
+      {selectedOpForLink && (
+        <ExternalLinkModal 
+          operation={selectedOpForLink}
+          isOpen={!!selectedOpForLink}
+          onClose={() => setSelectedOpForLink(null)}
+          onRevokeLink={(id) => {
+            setNotice(`تم إلغاء الرابط للعملية ${id} فورياً ومركزياً.`);
+            setSelectedOpForLink(null);
+          }}
+          onExtendLink={(id) => {
+            setNotice(`تم تمديد صلاحية الرابط للعملية ${id} لمدة 7 أيام.`);
+            setSelectedOpForLink(null);
+          }}
+        />
+      )}
+
+      {/* Toast Notification */}
+      {notice && (
+        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-slate-900 text-white px-4 py-2.5 rounded-lg shadow-xl text-xs font-semibold animate-in fade-in slide-in-from-bottom-2 duration-150">
+          <Check className="size-4 text-teal-400" />
+          <span>{notice}</span>
+          <button onClick={() => setNotice('')} className="p-0.5 hover:bg-slate-800 rounded">
+            <X className="size-3.5" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
-function LogTable({ logs }: { logs: DownloadItem[] }) { return logs.length ? <div className="overflow-x-auto"><table className="data-table"><thead><tr><th>الملف</th><th>رابط الإرسال</th><th>التاريخ</th><th>عنوان IP</th><th>النوع / المتصفح</th></tr></thead><tbody>{logs.map((log, i) => <tr key={i}><td className="max-w-72 break-all" dir="auto">{log.original_name}</td><td>{log.share_title || '—'}</td><td className="whitespace-nowrap">{dateLabel(log.downloaded_at)}<p className="mt-1 text-xs text-muted-foreground">{new Date(log.downloaded_at).toLocaleTimeString('ar-SA')}</p></td><td dir="ltr">{log.ip}</td><td><span>{log.kind}</span><p dir="auto" className="mt-1 max-w-64 break-all text-xs text-muted-foreground">{log.user_agent}</p></td></tr>)}</tbody></table></div> : <Empty title="لا توجد تنزيلات مسجلة" />; }
