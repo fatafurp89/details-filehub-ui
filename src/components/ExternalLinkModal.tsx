@@ -113,20 +113,43 @@ export const ExternalLinkModal: React.FC<ExternalLinkModalProps> = ({
 
           {/* Action buttons */}
           <div className="pt-2 flex items-center justify-between gap-2 border-t border-slate-100">
-            <button
-              onClick={() => onRevokeLink && onRevokeLink(operation.id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 rounded-md text-xs font-semibold cursor-pointer"
-            >
-              <Trash2 className="size-3.5" />
-              إلغاء فوري مركزي للرابط
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => onRevokeLink && onRevokeLink(operation.id)}
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 rounded-md text-xs font-semibold cursor-pointer"
+              >
+                <Trash2 className="size-3.5" />
+                إلغاء فوري للرابط
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if ((window as any).__openLandingPreview) {
+                    (window as any).__openLandingPreview(operation.direction === 'request' ? 'upload_request' : 'file_download', {
+                      reference: operation.reference,
+                      targetEntity: operation.sourceOrDestination,
+                      transactionRef: operation.linkedEntity.referenceNumber,
+                      title: operation.documentTitle,
+                      description: 'بوابة إرسال واستقبال الوثائق المعتمدة الخاصة بشركة ديتيلز للاستشارات الهندسية.',
+                      expiresAt: '2026-10-22',
+                      maxDownloads: 5,
+                      remainingDownloads: 3
+                    });
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-teal-200 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-md text-xs font-bold cursor-pointer"
+              >
+                <span>معاينة صفحة العميل</span>
+              </button>
+            </div>
 
             <button
               onClick={() => onExtendLink && onExtendLink(operation.id)}
               className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 rounded-md text-xs font-semibold cursor-pointer"
             >
               <RefreshCw className="size-3.5" />
-              تمديد المهلة 7 أيام إضافية
+              تمديد المهلة
             </button>
           </div>
         </div>

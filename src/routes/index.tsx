@@ -25,6 +25,7 @@ import { OfficialHandoffView } from '@/components/OfficialHandoffView';
 import { SendExternalDialog } from '@/components/SendExternalDialog';
 import { ExternalLinkModal } from '@/components/ExternalLinkModal';
 import { CenterSettingsView } from '@/components/CenterSettingsView';
+import { PublicLandingPreviewModal } from '@/components/PublicLandingPreviewModal';
 
 import { 
   initialStats, 
@@ -64,6 +65,27 @@ function DocumentCenterMainPage() {
   const [selectedOpForLink, setSelectedOpForLink] = useState<OperationRecord | null>(null);
   const [selectedPkgForSend, setSelectedPkgForSend] = useState<OutboundPackage | null>(null);
   const [notice, setNotice] = useState<string>('');
+  
+  // Public landing preview state
+  const [landingPreview, setLandingPreview] = useState<{
+    isOpen: boolean;
+    type: 'upload_request' | 'file_download';
+    data: any;
+  }>({
+    isOpen: false,
+    type: 'file_download',
+    data: {}
+  });
+
+  useEffect(() => {
+    (window as any).__openLandingPreview = (type: 'upload_request' | 'file_download', data: any) => {
+      setLandingPreview({
+        isOpen: true,
+        type,
+        data
+      });
+    };
+  }, []);
 
   useEffect(() => {
     async function loadSession() {
@@ -320,6 +342,16 @@ function DocumentCenterMainPage() {
             setNotice(`تم تمديد صلاحية الرابط للعملية ${id} لمدة 7 أيام.`);
             setSelectedOpForLink(null);
           }}
+        />
+      )}
+
+      {/* Public Landing Preview Modal */}
+      {landingPreview.isOpen && (
+        <PublicLandingPreviewModal 
+          isOpen={landingPreview.isOpen}
+          onClose={() => setLandingPreview(prev => ({ ...prev, isOpen: false }))}
+          type={landingPreview.type}
+          data={landingPreview.data}
         />
       )}
 

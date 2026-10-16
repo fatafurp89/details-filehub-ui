@@ -161,12 +161,41 @@ export const SendExternalDialog: React.FC<SendExternalDialogProps> = ({
 
         {/* Footer */}
         <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-200 rounded-md cursor-pointer"
-          >
-            إلغاء التجهيز
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-200 rounded-md cursor-pointer"
+            >
+              إلغاء
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if ((window as any).__openLandingPreview) {
+                  (window as any).__openLandingPreview('file_download', {
+                    reference: pkg.pkgReference,
+                    targetEntity: pkg.destination,
+                    transactionRef: pkg.linkedTransactionRef,
+                    title: subject,
+                    description: messageBody,
+                    expiresAt: '2026-10-25',
+                    maxDownloads: 5,
+                    remainingDownloads: 5,
+                    files: pkg.items.map(it => ({
+                      name: it.title + '.pdf',
+                      size: (it.sizeBytes / (1024 * 1024)).toFixed(1) + ' MB',
+                      pages: it.pagesCount,
+                      verified: true
+                    }))
+                  });
+                }
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 rounded-md text-xs font-bold cursor-pointer"
+            >
+              <Eye className="size-4" />
+              معاينة صفحة العميل (بريفيو قبل الإرسال)
+            </button>
+          </div>
 
           <button
             onClick={() => onConfirmSend(selectedMethod, subject)}
