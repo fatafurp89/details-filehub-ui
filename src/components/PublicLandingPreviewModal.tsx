@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FolderDown, 
   ShieldCheck, 
@@ -33,9 +33,14 @@ import {
   Moon,
   Globe,
   SlidersHorizontal,
-  FileSpreadsheet,
-  FileCode,
-  CheckCheck
+  KeyRound,
+  FileCheck,
+  Building2,
+  CheckCheck,
+  Send,
+  Printer,
+  ChevronRight,
+  Maximize2
 } from 'lucide-react';
 import { LegalMarginBar } from './LegalMarginBar';
 
@@ -77,6 +82,17 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
   const [showQrModal, setShowQrModal] = useState(false);
   const [auditLogActive, setAuditLogActive] = useState(false);
 
+  // New features state
+  const [otpProtection, setOtpProtection] = useState(false);
+  const [otpEntered, setOtpEntered] = useState('');
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otpError, setOtpError] = useState(false);
+
+  const [submissionComplete, setSubmissionComplete] = useState(false);
+  const [submissionReceiptRef, setSubmissionReceiptRef] = useState('');
+
+  const [inspectionModal, setInspectionModal] = useState(false);
+
   const defaultFiles = [
     { name: 'مخطط_السلامة_والدفاع_المدني_المعتمد.dwg', size: '14.2 MB', pages: 1, verified: true, type: 'cad' as const, sha256: '9a8b1...3f12' },
     { name: 'تقرير_الجسات_واختبار_التربة_الإنشائي.pdf', size: '4.8 MB', pages: 8, verified: true, type: 'pdf' as const, sha256: '7c4d2...8e90' },
@@ -89,7 +105,8 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
   const simulatedAuditEvents = [
     { time: '04:52', event: 'تم إنشاء الرابط وتوقيعه رقمياً', actor: 'النظام (Hetzner Storage)' },
     { time: '04:55', event: 'فحص الحماية من الفيروسات والبرمجيات الخبيثة', actor: 'DLP Sentinel' },
-    { time: '04:58', event: 'تطبيق العلامة المائية باسم ' + data.targetEntity, actor: 'خدمة توليد الوثائق' }
+    { time: '04:58', event: 'تطبيق العلامة المائية باسم ' + data.targetEntity, actor: 'خدمة توليد الوثائق' },
+    { time: '05:01', event: 'محاكاة التحقق من هوية المستلم OTP', actor: 'بوابة التحقق الموحد' }
   ];
 
   const handleSimulateFileUpload = (itemName: string) => {
@@ -104,6 +121,21 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
         [itemName]: { size: '3.1 MB', progress: 100, ready: true, sha256: 'e89c...2041' }
       }));
     }, 600);
+  };
+
+  const handleFinalSubmit = () => {
+    const ref = `RCP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    setSubmissionReceiptRef(ref);
+    setSubmissionComplete(true);
+  };
+
+  const handleVerifyOtp = () => {
+    if (otpEntered === '4892' || otpEntered === '1234' || otpEntered.length === 4) {
+      setOtpVerified(true);
+      setOtpError(false);
+    } else {
+      setOtpError(true);
+    }
   };
 
   const handleDownloadAllZip = () => {
@@ -141,7 +173,14 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
       readyToSend: 'جاهز للإرسال',
       dragDropTitle: 'اسحب وأفلت الملفات الإضافية هنا أو اضغط للاختيار',
       dragDropSubtitle: 'يدعم التخزين عبر سحابة Hetzner Storage · الحد الأقصى للملف: 100MB',
-      sslNotice: 'تشفير 256-bit SSL · Hetzner Storage Box'
+      sslNotice: 'تشفير 256-bit SSL · Hetzner Storage Box',
+      otpPrompt: 'الرابط محمي برمز تحقق أمني (OTP)',
+      otpDesc: 'أدخل رمز التحقق المرسل لهاتفك المسجل لإتاحة التنزيل:',
+      verifyBtn: 'تحقق والدخول للمستندات',
+      receiptTitle: 'تم استلام المستندات بنجاح وجارٍ التحليل الآلي',
+      receiptNotice: 'تم إصدار إشعار استلام رسمي برقم قيد معتمد وبصمة إيداع مشفرة.',
+      receiptRef: 'رقم الإشعار المعتمد',
+      printReceipt: 'طباعة إشعار الاستلام الرسمي'
     },
     en: {
       brandTitle: 'Details Engineering Consulting',
@@ -164,7 +203,14 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
       readyToSend: 'Ready to submit',
       dragDropTitle: 'Drag & Drop additional files here or click to browse',
       dragDropSubtitle: 'Direct Hetzner Cloud Storage · Max file size: 100MB',
-      sslNotice: '256-bit SSL Encryption · Hetzner Storage Box'
+      sslNotice: '256-bit SSL Encryption · Hetzner Storage Box',
+      otpPrompt: 'This link is secured by 2FA (OTP)',
+      otpDesc: 'Enter the verification code sent to your registered phone number:',
+      verifyBtn: 'Verify & Access Documents',
+      receiptTitle: 'Documents Received Successfully & Under Analysis',
+      receiptNotice: 'An official submission receipt has been generated with encrypted audit hash.',
+      receiptRef: 'Official Receipt Reference',
+      printReceipt: 'Print Official Submission Receipt'
     }
   }[lang];
 
@@ -189,12 +235,28 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
                 </span>
               </h3>
               <div className="text-[11px] text-slate-400 mt-0.5 hidden sm:block">
-                تأكد من هوية المستندات والعلامة المائية قبل الإرسال للعميل أو الجهة الخارجية
+                تأكد من هوية المستندات والعلامة المائية وقنوات الأمان قبل الإرسال الفعلي
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2 md:gap-2.5">
+            {/* OTP Security Simulator toggle */}
+            <button
+              onClick={() => {
+                setOtpProtection(!otpProtection);
+                setOtpVerified(false);
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                otpProtection ? 'bg-amber-900/60 border-amber-500 text-amber-200' : 'bg-slate-700 border-slate-600 text-slate-300'
+              }`}
+              title="محاكاة حماية الرابط برمز تحقق SMS/OTP"
+            >
+              <KeyRound className="size-3.5 text-amber-400" />
+              <span className="hidden sm:inline">حماية OTP:</span>
+              <span>{otpProtection ? 'مفعلة' : 'معطلة'}</span>
+            </button>
+
             {/* Language Switcher */}
             <button
               onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
@@ -391,221 +453,304 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
             <div className={`p-4 md:p-6 flex-1 overflow-y-auto space-y-4 md:space-y-5 text-xs ${
               theme === 'dark' ? 'bg-slate-900/90' : 'bg-slate-50/70'
             }`}>
-              {/* Target Entity Card */}
-              <div className={`p-4 rounded-xl border shadow-xs flex items-start justify-between gap-3 ${
-                theme === 'dark' ? 'bg-slate-800/90 border-slate-700' : 'bg-white border-slate-200/80'
-              }`}>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200">
-                      {t.entityTag}
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-mono">{t.sslNotice}</span>
+              {/* SUBMISSION RECEIPT VIEW (IF COMPLETE) */}
+              {submissionComplete ? (
+                <div className="p-6 bg-white dark:bg-slate-800 rounded-2xl border border-teal-500/40 shadow-xl space-y-4 text-center animate-in zoom-in-95">
+                  <div className="size-16 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+                    <CheckCheck className="size-8" />
                   </div>
-                  <h2 className="text-sm md:text-base font-bold pt-0.5">
-                    {data.targetEntity}
-                  </h2>
-                  <p className="text-slate-500 leading-relaxed text-xs">
-                    {data.description || 'يسرنا تزويدكم بالوثائق والتقارير الهندسية المعتمدة للمشروع. يرجى التنزيل قبل انتهاء الصلاحية المحددة للرابط.'}
+                  <h3 className="text-base md:text-lg font-bold text-slate-900 dark:text-white">
+                    {t.receiptTitle}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+                    {t.receiptNotice}
                   </p>
-                </div>
-                <div className="size-10 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 shrink-0">
-                  <Lock className="size-5 text-teal-700 dark:text-teal-400" />
-                </div>
-              </div>
 
-              {/* MODE 1: FILE DOWNLOAD LANDING */}
-              {type === 'file_download' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <h3 className="font-bold text-xs flex items-center gap-2">
-                      <FileCheck2 className="size-4 text-teal-700 dark:text-teal-400" />
-                      {t.readyDocs} ({filesList.length})
-                    </h3>
-                    
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={handleDownloadAllZip}
-                        disabled={downloadAllProgress}
-                        className="flex items-center gap-1.5 px-3 py-1 bg-slate-800 dark:bg-teal-700 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-xs disabled:bg-slate-400"
-                      >
-                        <Archive className={`size-3.5 ${downloadAllProgress ? 'animate-spin' : ''}`} />
-                        <span>{downloadAllProgress ? t.downloadingZip : t.downloadZip}</span>
-                      </button>
-                      
-                      <span className="text-[11px] text-emerald-800 font-bold bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-200 font-mono">
-                        {t.remainingDownloads} {data.remainingDownloads || 4}
-                      </span>
+                  <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 max-w-sm mx-auto space-y-1">
+                    <span className="text-[11px] text-slate-400 font-mono">{t.receiptRef}</span>
+                    <div className="text-base font-mono font-bold text-teal-700 dark:text-teal-400">
+                      {submissionReceiptRef}
                     </div>
                   </div>
 
-                  <div className="space-y-2.5">
-                    {filesList.map((f, i) => (
-                      <div 
-                        key={i}
-                        className={`p-3.5 rounded-xl border shadow-xs flex items-center justify-between transition-all group ${
-                          theme === 'dark' ? 'bg-slate-800/80 border-slate-700 hover:border-teal-500' : 'bg-white border-slate-200/80 hover:border-teal-500'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className={`size-10 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
-                            f.type === 'cad' ? 'bg-amber-100 text-amber-800' : f.type === 'doc' ? 'bg-blue-100 text-blue-800' : 'bg-teal-50 text-teal-700'
-                          }`}>
-                            {f.type === 'cad' ? 'CAD' : f.type === 'doc' ? 'XLS' : 'PDF'}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="font-bold text-xs truncate" title={f.name}>
-                              {f.name}
-                            </div>
-                            <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 font-mono">
-                              <span>{f.size}</span>
-                              <span>·</span>
-                              <span>{f.pages} {lang === 'ar' ? 'صفحات' : 'pages'}</span>
-                              <span>·</span>
-                              <span className="text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1 font-sans">
-                                <CheckCircle2 className="size-3" /> {t.verified}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button 
-                            onClick={() => setActivePreviewDoc({ name: f.name, type: f.type || 'pdf', sha256: f.sha256 || '4f1a...9981' })}
-                            className={`flex items-center gap-1 px-2.5 py-1.5 border rounded-lg cursor-pointer text-[11px] font-medium transition-colors ${
-                              theme === 'dark' ? 'border-slate-700 text-slate-300 hover:bg-slate-700' : 'border-slate-200 text-slate-600 hover:text-teal-800 hover:bg-teal-50'
-                            }`}
-                          >
-                            <Eye className="size-3.5 text-teal-600" />
-                            <span>{t.preview}</span>
-                          </button>
-                          <button className="flex items-center gap-1.5 px-3.5 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-bold text-xs shadow-xs cursor-pointer">
-                            <Download className="size-3.5" />
-                            <span>{t.download}</span>
-                          </button>
-                        </div>
+                  <div className="pt-2 flex justify-center gap-3">
+                    <button
+                      onClick={() => window.print()}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 text-white rounded-lg text-xs font-semibold cursor-pointer"
+                    >
+                      <Printer className="size-4" />
+                      <span>{t.printReceipt}</span>
+                    </button>
+                    <button
+                      onClick={() => setSubmissionComplete(false)}
+                      className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs font-medium cursor-pointer"
+                    >
+                      العودة للقائمة
+                    </button>
+                  </div>
+                </div>
+              ) : otpProtection && !otpVerified ? (
+                /* OTP Verification Challenge View */
+                <div className="p-6 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-md max-w-md mx-auto space-y-4 text-center animate-in zoom-in-95">
+                  <div className="size-12 rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 flex items-center justify-center mx-auto">
+                    <KeyRound className="size-6" />
+                  </div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    {t.otpPrompt}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {t.otpDesc} (رمز تجريبي: <strong>4892</strong>)
+                  </p>
+                  <div>
+                    <input
+                      type="text"
+                      maxLength={4}
+                      value={otpEntered}
+                      onChange={(e) => setOtpEntered(e.target.value)}
+                      placeholder="• • • •"
+                      className="w-36 text-center text-xl font-mono tracking-widest p-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-teal-600"
+                    />
+                    {otpError && (
+                      <p className="text-[11px] text-red-500 mt-1">رمز التحقق غير صحيح، حاول مجدداً</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleVerifyOtp}
+                    className="w-full py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-bold text-xs shadow-xs cursor-pointer"
+                  >
+                    {t.verifyBtn}
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Target Entity Card */}
+                  <div className={`p-4 rounded-xl border shadow-xs flex items-start justify-between gap-3 ${
+                    theme === 'dark' ? 'bg-slate-800/90 border-slate-700' : 'bg-white border-slate-200/80'
+                  }`}>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200">
+                          {t.entityTag}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">{t.sslNotice}</span>
                       </div>
-                    ))}
+                      <h2 className="text-sm md:text-base font-bold pt-0.5">
+                        {data.targetEntity}
+                      </h2>
+                      <p className="text-slate-500 leading-relaxed text-xs">
+                        {data.description || 'يسرنا تزويدكم بالوثائق والتقارير الهندسية المعتمدة للمشروع. يرجى التنزيل قبل انتهاء الصلاحية المحددة للرابط.'}
+                      </p>
+                    </div>
+                    <div className="size-10 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 shrink-0">
+                      <Lock className="size-5 text-teal-700 dark:text-teal-400" />
+                    </div>
                   </div>
 
-                  {/* Document preview lightbox if clicked */}
-                  {activePreviewDoc && (
-                    <div className="p-4 bg-slate-900 text-white rounded-xl border border-slate-700 space-y-3 animate-in fade-in">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-xs font-bold text-teal-300">
-                          <Eye className="size-4" />
-                          <span>{t.preview}: {activePreviewDoc.name}</span>
+                  {/* MODE 1: FILE DOWNLOAD LANDING */}
+                  {type === 'file_download' && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <h3 className="font-bold text-xs flex items-center gap-2">
+                          <FileCheck2 className="size-4 text-teal-700 dark:text-teal-400" />
+                          {t.readyDocs} ({filesList.length})
+                        </h3>
+                        
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={handleDownloadAllZip}
+                            disabled={downloadAllProgress}
+                            className="flex items-center gap-1.5 px-3 py-1 bg-slate-800 dark:bg-teal-700 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-xs disabled:bg-slate-400"
+                          >
+                            <Archive className={`size-3.5 ${downloadAllProgress ? 'animate-spin' : ''}`} />
+                            <span>{downloadAllProgress ? t.downloadingZip : t.downloadZip}</span>
+                          </button>
+                          
+                          <span className="text-[11px] text-emerald-800 font-bold bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-200 font-mono">
+                            {t.remainingDownloads} {data.remainingDownloads || 4}
+                          </span>
                         </div>
-                        <button onClick={() => setActivePreviewDoc(null)} className="text-slate-400 hover:text-white">
-                          <X className="size-4" />
-                        </button>
                       </div>
-                      <div className="h-48 bg-slate-950 rounded-lg border border-slate-800 flex flex-col items-center justify-center text-slate-400 text-xs relative overflow-hidden p-4 text-center">
-                        {watermarkEnabled && (
-                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none opacity-10 rotate-[-25deg] text-3xl font-black text-white">
-                            {data.targetEntity} · {data.transactionRef}
+
+                      <div className="space-y-2.5">
+                        {filesList.map((f, i) => (
+                          <div 
+                            key={i}
+                            className={`p-3.5 rounded-xl border shadow-xs flex items-center justify-between transition-all group ${
+                              theme === 'dark' ? 'bg-slate-800/80 border-slate-700 hover:border-teal-500' : 'bg-white border-slate-200/80 hover:border-teal-500'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className={`size-10 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
+                                f.type === 'cad' ? 'bg-amber-100 text-amber-800' : f.type === 'doc' ? 'bg-blue-100 text-blue-800' : 'bg-teal-50 text-teal-700'
+                              }`}>
+                                {f.type === 'cad' ? 'CAD' : f.type === 'doc' ? 'XLS' : 'PDF'}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="font-bold text-xs truncate" title={f.name}>
+                                  {f.name}
+                                </div>
+                                <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 font-mono">
+                                  <span>{f.size}</span>
+                                  <span>·</span>
+                                  <span>{f.pages} {lang === 'ar' ? 'صفحات' : 'pages'}</span>
+                                  <span>·</span>
+                                  <span className="text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1 font-sans">
+                                    <CheckCircle2 className="size-3" /> {t.verified}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button 
+                                onClick={() => setActivePreviewDoc({ name: f.name, type: f.type || 'pdf', sha256: f.sha256 || '4f1a...9981' })}
+                                className={`flex items-center gap-1 px-2.5 py-1.5 border rounded-lg cursor-pointer text-[11px] font-medium transition-colors ${
+                                  theme === 'dark' ? 'border-slate-700 text-slate-300 hover:bg-slate-700' : 'border-slate-200 text-slate-600 hover:text-teal-800 hover:bg-teal-50'
+                                }`}
+                              >
+                                <Eye className="size-3.5 text-teal-600" />
+                                <span>{t.preview}</span>
+                              </button>
+                              <button className="flex items-center gap-1.5 px-3.5 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-bold text-xs shadow-xs cursor-pointer">
+                                <Download className="size-3.5" />
+                                <span>{t.download}</span>
+                              </button>
+                            </div>
                           </div>
-                        )}
-                        <FileText className="size-10 text-teal-500 mb-2 opacity-80" />
-                        <span className="font-semibold text-slate-300">{t.brandTitle}</span>
-                        <span className="text-[11px] text-slate-500 mt-1 font-mono">
-                          SHA-256: {activePreviewDoc.sha256} · Hetzner Storage Verified
+                        ))}
+                      </div>
+
+                      {/* Document preview lightbox if clicked */}
+                      {activePreviewDoc && (
+                        <div className="p-4 bg-slate-900 text-white rounded-xl border border-slate-700 space-y-3 animate-in fade-in">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-xs font-bold text-teal-300">
+                              <Eye className="size-4" />
+                              <span>{t.preview}: {activePreviewDoc.name}</span>
+                            </div>
+                            <button onClick={() => setActivePreviewDoc(null)} className="text-slate-400 hover:text-white">
+                              <X className="size-4" />
+                            </button>
+                          </div>
+                          <div className="h-48 bg-slate-950 rounded-lg border border-slate-800 flex flex-col items-center justify-center text-slate-400 text-xs relative overflow-hidden p-4 text-center">
+                            {watermarkEnabled && (
+                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none opacity-10 rotate-[-25deg] text-3xl font-black text-white">
+                                {data.targetEntity} · {data.transactionRef}
+                              </div>
+                            )}
+                            <FileText className="size-10 text-teal-500 mb-2 opacity-80" />
+                            <span className="font-semibold text-slate-300">{t.brandTitle}</span>
+                            <span className="text-[11px] text-slate-500 mt-1 font-mono">
+                              SHA-256: {activePreviewDoc.sha256} · Hetzner Storage Verified
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="p-3 bg-amber-50/80 border border-amber-200/80 rounded-xl text-[11px] text-amber-900 flex items-center gap-2">
+                        <AlertCircle className="size-4 shrink-0 text-amber-700" />
+                        <span>
+                          <strong>سياسة حماية المستندات:</strong> الوثائق المرفقة محمية بعلامة مائية رقمية وتتضمن بصمات SHA-256 للتحقق القانوني.
                         </span>
                       </div>
                     </div>
                   )}
 
-                  <div className="p-3 bg-amber-50/80 border border-amber-200/80 rounded-xl text-[11px] text-amber-900 flex items-center gap-2">
-                    <AlertCircle className="size-4 shrink-0 text-amber-700" />
-                    <span>
-                      <strong>سياسة حماية المستندات:</strong> الوثائق المرفقة محمية بعلامة مائية رقمية وتتضمن بصمات SHA-256 للتحقق القانوني.
-                    </span>
-                  </div>
-                </div>
-              )}
+                  {/* MODE 2: UPLOAD REQUEST LANDING */}
+                  {type === 'upload_request' && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-bold text-xs flex items-center gap-2">
+                          <Upload className="size-4 text-teal-700 dark:text-teal-400" />
+                          {t.requiredUploads}
+                        </h3>
+                      </div>
 
-              {/* MODE 2: UPLOAD REQUEST LANDING */}
-              {type === 'upload_request' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-xs flex items-center gap-2">
-                      <Upload className="size-4 text-teal-700 dark:text-teal-400" />
-                      {t.requiredUploads}
-                    </h3>
-                  </div>
+                      <div className="space-y-2.5">
+                        {(data.requiredItems || [
+                          { name: 'صورة الصك الإلكتروني المحدث للموقع', isRequired: true, ext: 'PDF, JPG', tip: 'يجب أن يكون الصك مفعلاً من البورصة العقارية' },
+                          { name: 'موافقة الجيران أو محضر تحديد الارتدادات المعتمد', isRequired: true, ext: 'PDF', tip: 'موقع ومعتمد من المكتب المساحي' },
+                          { name: 'شهادة تنسيق إطلاق التيار الكهربائي الحديثة', isRequired: false, ext: 'PDF, PNG', tip: 'اختياري في حال توفرها' }
+                        ]).map((item, i) => {
+                          const uploadState = uploadedFiles[item.name];
+                          return (
+                            <div 
+                              key={i}
+                              className={`p-3.5 rounded-xl border transition-all ${
+                                uploadState?.ready 
+                                  ? 'bg-emerald-50/70 border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800' 
+                                  : theme === 'dark' ? 'bg-slate-800/80 border-slate-700' : 'bg-white border-slate-200/80'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="space-y-0.5">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                      item.isRequired ? 'bg-red-100 text-red-800' : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+                                    }`}>
+                                      {item.isRequired ? t.mandatory : t.optional}
+                                    </span>
+                                    <span className="font-bold text-xs">{item.name}</span>
+                                  </div>
+                                  {item.tip && (
+                                    <p className="text-[11px] text-slate-500">{item.tip}</p>
+                                  )}
+                                </div>
 
-                  <div className="space-y-2.5">
-                    {(data.requiredItems || [
-                      { name: 'صورة الصك الإلكتروني المحدث للموقع', isRequired: true, ext: 'PDF, JPG', tip: 'يجب أن يكون الصك مفعلاً من البورصة العقارية' },
-                      { name: 'موافقة الجيران أو محضر تحديد الارتدادات المعتمد', isRequired: true, ext: 'PDF', tip: 'موقع ومعتمد من المكتب المساحي' },
-                      { name: 'شهادة تنسيق إطلاق التيار الكهربائي الحديثة', isRequired: false, ext: 'PDF, PNG', tip: 'اختياري في حال توفرها' }
-                    ]).map((item, i) => {
-                      const uploadState = uploadedFiles[item.name];
-                      return (
-                        <div 
-                          key={i}
-                          className={`p-3.5 rounded-xl border transition-all ${
-                            uploadState?.ready 
-                              ? 'bg-emerald-50/70 border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800' 
-                              : theme === 'dark' ? 'bg-slate-800/80 border-slate-700' : 'bg-white border-slate-200/80'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="space-y-0.5">
-                              <div className="flex items-center gap-2">
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                  item.isRequired ? 'bg-red-100 text-red-800' : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
-                                }`}>
-                                  {item.isRequired ? t.mandatory : t.optional}
-                                </span>
-                                <span className="font-bold text-xs">{item.name}</span>
+                                {uploadState?.ready ? (
+                                  <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-bold text-xs bg-emerald-100 dark:bg-emerald-900/60 px-3 py-1 rounded-lg">
+                                    <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
+                                    <span>{t.readyToSend} ({uploadState.size})</span>
+                                  </div>
+                                ) : uploadState ? (
+                                  <div className="flex items-center gap-2 text-teal-700 text-xs font-mono">
+                                    <RefreshCw className="size-3.5 animate-spin" />
+                                    <span>{uploadState.progress}%</span>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => handleSimulateFileUpload(item.name)}
+                                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-teal-50 hover:text-teal-800 text-slate-800 dark:text-slate-200 rounded-lg font-bold text-xs border border-slate-300 dark:border-slate-600 transition-colors cursor-pointer"
+                                  >
+                                    <Camera className="size-3.5" />
+                                    <span>{t.chooseOrSnap}</span>
+                                  </button>
+                                )}
                               </div>
-                              {item.tip && (
-                                <p className="text-[11px] text-slate-500">{item.tip}</p>
-                              )}
                             </div>
+                          );
+                        })}
+                      </div>
 
-                            {uploadState?.ready ? (
-                              <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-bold text-xs bg-emerald-100 dark:bg-emerald-900/60 px-3 py-1 rounded-lg">
-                                <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
-                                <span>{t.readyToSend} ({uploadState.size})</span>
-                              </div>
-                            ) : uploadState ? (
-                              <div className="flex items-center gap-2 text-teal-700 text-xs font-mono">
-                                <RefreshCw className="size-3.5 animate-spin" />
-                                <span>{uploadState.progress}%</span>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => handleSimulateFileUpload(item.name)}
-                                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-teal-50 hover:text-teal-800 text-slate-800 dark:text-slate-200 rounded-lg font-bold text-xs border border-slate-300 dark:border-slate-600 transition-colors cursor-pointer"
-                              >
-                                <Camera className="size-3.5" />
-                                <span>{t.chooseOrSnap}</span>
-                              </button>
-                            )}
-                          </div>
+                      {/* Drop zone with mobile camera support notice */}
+                      <div 
+                        onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+                        onDragLeave={() => setDragActive(false)}
+                        onDrop={(e) => { e.preventDefault(); setDragActive(false); handleSimulateFileUpload('وثيقة_إضافية_مرفوعة.pdf'); }}
+                        className={`border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer ${
+                          dragActive ? 'border-teal-600 bg-teal-50 dark:bg-teal-950/40' : theme === 'dark' ? 'border-slate-700 bg-slate-800/60' : 'border-slate-300 bg-white hover:border-teal-500'
+                        }`}
+                      >
+                        <Upload className="size-8 text-teal-600 mx-auto mb-2" />
+                        <div className="font-bold text-xs">{t.dragDropTitle}</div>
+                        <div className="text-[11px] text-slate-500 mt-1">
+                          {t.dragDropSubtitle}
                         </div>
-                      );
-                    })}
-                  </div>
+                      </div>
 
-                  {/* Drop zone with mobile camera support notice */}
-                  <div 
-                    onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
-                    onDragLeave={() => setDragActive(false)}
-                    onDrop={(e) => { e.preventDefault(); setDragActive(false); handleSimulateFileUpload('وثيقة_إضافية_مرفوعة.pdf'); }}
-                    className={`border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer ${
-                      dragActive ? 'border-teal-600 bg-teal-50 dark:bg-teal-950/40' : theme === 'dark' ? 'border-slate-700 bg-slate-800/60' : 'border-slate-300 bg-white hover:border-teal-500'
-                    }`}
-                  >
-                    <Upload className="size-8 text-teal-600 mx-auto mb-2" />
-                    <div className="font-bold text-xs">{t.dragDropTitle}</div>
-                    <div className="text-[11px] text-slate-500 mt-1">
-                      {t.dragDropSubtitle}
+                      {/* Final Submit Button */}
+                      <div className="pt-2">
+                        <button
+                          onClick={handleFinalSubmit}
+                          className="w-full py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl font-bold text-xs shadow-md flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                        >
+                          <Send className="size-4" />
+                          <span>إرسال المستندات وتأكيد الإيداع في مركز الوثائق</span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -624,7 +769,7 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
           <div className="flex items-center gap-2">
             <Sparkles className="size-4 text-amber-400 shrink-0" />
             <span>
-              يمكن للعميل فتح هذا الرابط المباشر من أي متصفح، وتنزيل أو رفع الوثائق دون الحاجة لكلمات مرور أو تسجيل دخول.
+              يمكن للعميل فتح هذا الرابط المباشر من أي متصفح، وتنزيل أو رفع الوثائق مع التتبع الفوري في مركز الوثائق.
             </span>
           </div>
 
