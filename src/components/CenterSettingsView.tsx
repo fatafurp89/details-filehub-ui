@@ -26,6 +26,55 @@ export const CenterSettingsView: React.FC = () => {
         </span>
       </div>
 
+      {/* Hetzner Storage Dedicated Folder & Source Policy */}
+      <div className="border border-indigo-200 bg-indigo-50/40 rounded-xl p-4.5 space-y-4">
+        <div className="flex items-center justify-between border-b border-indigo-100 pb-2.5">
+          <div className="flex items-center gap-2.5">
+            <div className="size-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0">
+              <HardDrive className="size-4" />
+            </div>
+            <div>
+              <h4 className="font-bold text-slate-900 text-sm">
+                المجلد المخصص لمركز الإرسال والاستقبال على سحابة Hetzner Storage Box
+              </h4>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                تخصيص مجلد جذري موحد لكافة المرفقات الواردة والمستندات الصادرة مع توجيه مصادر الروابط مباشرة لهيتنزر
+              </p>
+            </div>
+          </div>
+          <span className="text-[11px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-1 rounded-full font-mono font-bold flex items-center gap-1.5">
+            <span className="size-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            Hetzner Node: Connected (10.0 TB)
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 text-xs">
+          <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-2xs space-y-1">
+            <span className="text-[10px] text-slate-400 font-bold block">مجلد مركز الإرسال المعتمد (Outbound Storage)</span>
+            <div className="font-mono text-indigo-900 font-bold text-xs select-all bg-slate-50 p-1.5 rounded border border-slate-200" dir="ltr">
+              /details-storage/document-center/outbound/
+            </div>
+            <p className="text-[10px] text-slate-500">تخزين الحزم ومخططات DWG وتقارير الصادر المعتمدة</p>
+          </div>
+
+          <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-2xs space-y-1">
+            <span className="text-[10px] text-slate-400 font-bold block">مجلد مركز الاستقبال والوارد (Inbound Storage)</span>
+            <div className="font-mono text-emerald-900 font-bold text-xs select-all bg-slate-50 p-1.5 rounded border border-slate-200" dir="ltr">
+              /details-storage/document-center/inbound/
+            </div>
+            <p className="text-[10px] text-slate-500">استقبال مرفقات العملاء من اللاندينج ورسائل واتساب ديتيلز</p>
+          </div>
+
+          <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-2xs space-y-1">
+            <span className="text-[10px] text-slate-400 font-bold block">مصدر روابط التنزيل والتسليم (Source Origin)</span>
+            <div className="font-mono text-teal-900 font-bold text-xs select-all bg-slate-50 p-1.5 rounded border border-slate-200" dir="ltr">
+              Hetzner S3 / Storage Gateway Direct
+            </div>
+            <p className="text-[10px] text-slate-500">الروابط تُنشأ وتُسحب بياناتها مباشرة عبر مسارات هيتنزر الآمنة</p>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Core Limits */}
         <div className="border border-slate-200 rounded-lg p-4 bg-white space-y-3">

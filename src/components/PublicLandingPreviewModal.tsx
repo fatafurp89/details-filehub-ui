@@ -591,13 +591,18 @@ export const PublicLandingPreviewModal: React.FC<PublicLandingPreviewModalProps>
                                 <div className="font-bold text-xs truncate" title={f.name}>
                                   {f.name}
                                 </div>
-                                <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 font-mono">
+                                <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 font-mono flex-wrap">
                                   <span>{f.size}</span>
                                   <span>·</span>
                                   <span>{f.pages} {lang === 'ar' ? 'صفحات' : 'pages'}</span>
                                   <span>·</span>
                                   <span className="text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1 font-sans">
                                     <CheckCircle2 className="size-3" /> {t.verified}
+                                  </span>
+                                  <span>·</span>
+                                  <span className="text-indigo-600 dark:text-indigo-400 text-[10px] font-sans font-medium flex items-center gap-1">
+                                    <HardDrive className="size-3" />
+                                    <span>Hetzner Box Direct</span>
                                   </span>
                                 </div>
                               </div>

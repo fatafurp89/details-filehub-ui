@@ -493,9 +493,15 @@ export const QuickRequestModal: React.FC<QuickRequestModalProps> = ({
               </div>
             </div>
 
-            <p className="text-[11px] text-slate-500 pt-1">
-              * صفحة اللاندينج تتيح للعميل عند فتحها على الجوال اختيار الملفات من مدير الملفات أو التقاط الصور مباشرة بالكاميرا أو اختيارها من ألبوم الصور (استديو الجوال).
-            </p>
+            <div className="flex items-center justify-between pt-2 border-t border-slate-200/80 flex-wrap gap-2">
+              <span className="text-[11px] text-slate-500">
+                * صفحة اللاندينج تتيح للعميل عند فتحها على الجوال الاختيار من مدير الملفات أو الكاميرا أو الاستديو.
+              </span>
+              <div className="flex items-center gap-1.5 text-[10px] text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md font-mono">
+                <span className="font-bold font-sans">مجلد التخزين المعتمد على هيتنزر:</span>
+                <span dir="ltr">/details-storage/document-center/inbound/</span>
+              </div>
+            </div>
           </div>
 
           {/* Action buttons */}

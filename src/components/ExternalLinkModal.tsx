@@ -109,6 +109,12 @@ export const ExternalLinkModal: React.FC<ExternalLinkModalProps> = ({
               <span className="text-slate-500">العلامة المائية القانونية:</span>
               <span className="text-teal-800 font-semibold">مفعلة وتتضمن رقم المعاملة</span>
             </div>
+            <div className="flex justify-between items-center text-slate-700 border-t border-slate-200/60 pt-2">
+              <span className="text-slate-500">مصدر التخزين على سحابة هيتنزر:</span>
+              <span className="font-mono text-[10px] text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200" dir="ltr">
+                /details-storage/document-center/outbound/
+              </span>
+            </div>
           </div>
 
           {/* Action buttons */}

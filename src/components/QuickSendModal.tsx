@@ -66,13 +66,16 @@ export const QuickSendModal: React.FC<QuickSendModalProps> = ({
   // Files from Windows upload
   const [localFiles, setLocalFiles] = useState<{ name: string; size: number; ext: string }[]>([]);
   
-  // Files from Hetzner Storage Explorer
+  // Dedicated Hetzner Storage Folder for Outbound Documents
+  const HETZNER_OUTBOUND_BASE = '/details-storage/document-center/outbound';
+  
+  // Files from Hetzner Storage Explorer inside dedicated center folder
   const hetznerStorageFiles = [
-    { path: '/projects/2026/TRX-8821/dwg/مخطط_الإنشائي_المعتمد_A1.dwg', name: 'مخطط_الإنشائي_المعتمد_A1.dwg', size: 14889700, date: '2026-10-15', node: 'Hetzner-Box-01' },
-    { path: '/projects/2026/TRX-8821/reports/تقرير_التربة_والجسات_المعتمد.pdf', name: 'تقرير_التربة_والجسات_المعتمد.pdf', size: 5242880, date: '2026-10-14', node: 'Hetzner-Box-01' },
-    { path: '/projects/2026/TRX-8790/survey/كروكي_الرفع_المساحي_الرسمي.pdf', name: 'كروكي_الرفع_المساحي_الرسمي.pdf', size: 3145728, date: '2026-10-12', node: 'Hetzner-Box-01' },
-    { path: '/archive/deeds/صك_إلكتروني_أرض_الياسمين.pdf', name: 'صك_إلكتروني_أرض_الياسمين.pdf', size: 943718, date: '2026-10-10', node: 'Hetzner-Box-01' },
-    { path: '/contracts/2026/عقد_الإشراف_الهندسي_الموقع.pdf', name: 'عقد_الإشراف_الهندسي_الموقع.pdf', size: 1887436, date: '2026-10-08', node: 'Hetzner-Box-01' }
+    { path: `${HETZNER_OUTBOUND_BASE}/2026/TRX-8821/dwg/مخطط_الإنشائي_المعتمد_A1.dwg`, name: 'مخطط_الإنشائي_المعتمد_A1.dwg', size: 14889700, date: '2026-10-15', node: 'Hetzner-Storage-Box-01' },
+    { path: `${HETZNER_OUTBOUND_BASE}/2026/TRX-8821/reports/تقرير_التربة_والجسات_المعتمد.pdf`, name: 'تقرير_التربة_والجسات_المعتمد.pdf', size: 5242880, date: '2026-10-14', node: 'Hetzner-Storage-Box-01' },
+    { path: `${HETZNER_OUTBOUND_BASE}/2026/TRX-8790/survey/كروكي_الرفع_المساحي_الرسمي.pdf`, name: 'كروكي_الرفع_المساحي_الرسمي.pdf', size: 3145728, date: '2026-10-12', node: 'Hetzner-Storage-Box-01' },
+    { path: `${HETZNER_OUTBOUND_BASE}/archive/deeds/صك_إلكتروني_أرض_الياسمين.pdf`, name: 'صك_إلكتروني_أرض_الياسمين.pdf', size: 943718, date: '2026-10-10', node: 'Hetzner-Storage-Box-01' },
+    { path: `${HETZNER_OUTBOUND_BASE}/contracts/2026/عقد_الإشراف_الهندسي_الموقع.pdf`, name: 'عقد_الإشراف_الهندسي_الموقع.pdf', size: 1887436, date: '2026-10-08', node: 'Hetzner-Storage-Box-01' }
   ];
 
   const [selectedHetznerPaths, setSelectedHetznerPaths] = useState<string[]>([]);
@@ -294,10 +297,13 @@ export const QuickSendModal: React.FC<QuickSendModalProps> = ({
             {/* Source Content: Hetzner File Explorer */}
             {activeSource === 'hetzner_explorer' && (
               <div className="space-y-2 pt-2 border border-slate-200 rounded-xl p-3 bg-white">
-                <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100 flex-wrap">
                   <div className="flex items-center gap-2">
                     <HardDrive className="size-4 text-indigo-600" />
-                    <span className="font-bold text-slate-800">مستكشف الملفات (Storage Box Remote Node)</span>
+                    <span className="font-bold text-slate-800">مستكشف الملفات (Hetzner Storage Box)</span>
+                    <span className="text-[10px] bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full font-mono font-bold" dir="ltr">
+                      /details-storage/document-center/outbound/
+                    </span>
                   </div>
                   <input
                     type="text"
